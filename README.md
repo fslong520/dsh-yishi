@@ -41,9 +41,11 @@ cd ~/.dsh/profiles/web
 pnpm add file:~/Documents/yishi
 ```
 
-## 模型安装（必做）
+## 嵌入模型
 
-插件依赖 **bge-base-zh-v1.5**（~400MB），需手动安装：
+插件依赖 **bge-base-zh-v1.5**（~400MB）。首次安装时自动后台下载，无需操作。
+
+若 AI 回复仍为现代汉语/英语（未出现鲁迅式半文半白风格），说明模型未装成功，手动执行：
 
 ```bash
 python3 ~/.local/share/忆时/scripts/models-install.py
