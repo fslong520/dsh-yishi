@@ -1,0 +1,57 @@
+{
+  "name": "@fslong/dsh-yishi",
+  "version": "0.2.4",
+  "description": "忆时记忆系统 DSH 插件（自包含）：同步忆时资源（docs/scripts）至 ~/.local/share/忆时，注入忆时指令 + 注册 memocap 技能。opencode 忆时技能作废后插件为唯一提供者。",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "memory",
+    "忆时",
+    "memocap",
+    "chroma"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "SKILL.md",
+    "yishi-instructions.md",
+    "modules",
+    "references",
+    "scripts",
+    "!scripts/**/__pycache__"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "models:install": "python3 scripts/models-install.py || python scripts/models-install.py"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

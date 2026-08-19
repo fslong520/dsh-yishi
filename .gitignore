@@ -1,0 +1,12 @@
+node_modules/
+lib/
+*.log
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 构建产物
+*.map

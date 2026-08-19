@@ -1,0 +1,6 @@
+# dsh-yishi bundle patch: 注入忆时插件行。
+# 忆时记忆系统——注入忆时记忆指令 + 保障 memocap 技能注册。
+# 安装后插件 apply 时经 systemPrompt.section 注入指令、经 ctx.skills 注册 provider。
+- insert:
+    - id: dsh-yishi
+      name: '@fslong/dsh-yishi'
