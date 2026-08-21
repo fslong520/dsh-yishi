@@ -82,7 +82,7 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 
 初始化:    python3 $PY init
 存储记忆:  python3 $PY store "内容" --type task --emotion 0.8 [--scene 场景] [--activity-start 2025-05-01] [--activity-end 2025-05-10] [--force] [--merge-ids "旧ID1,旧ID2"]
-检索记忆:  python3 $PY recall "查询" [--limit 3 --expand] [--no-embed] [--max-total-chars 600]
+检索记忆:  python3 $PY recall "查询" [--limit 3 --expand] [--no-embed] [--max-total-chars 600]  # 向量语义相似<0.70 者自动过滤不展示
 语义合并:  python3 $PY merge --id <锚ID> [--threshold 0.68] [--keyword 过滤] [--content "权威版" --apply]
 封胶囊:   python3 $PY capsule lock --unlock-at "2026-12-31"
 查看胶囊:  python3 $PY capsule list
