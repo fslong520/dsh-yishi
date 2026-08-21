@@ -65,7 +65,7 @@ storage 时 `keywords` 含 `trigger:xxx` 前缀。用户日常对话中，言必
 ```
 用户：画个猫和老鼠的漫画
 
-言必检 → recall "漫画" --expand --limit 5
+言必检 → recall "漫画" --expand --limit 3
 → 命中 type=skill，keywords 含 trigger:漫画
 → 读 content 知步骤，读 skill_avoid 知禁区
 → 执行完毕后自动 update frequency+1

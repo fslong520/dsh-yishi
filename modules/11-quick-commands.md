@@ -58,7 +58,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI store "内容" --type <类型
 MEMO_DIR=~/.local/share/忆时/data python3 $YISHI recall "关键词" --limit <数量> --expand
 ```
 
-**默认值：** `--limit 5 --expand`
+**默认值：** `--limit 3 --expand`（默认最相关 3 条；相似 <0.70 自动过滤）
 
 **回复风格：**
 - 有结果 → 逐条简要列出（内容摘要 + 类型 + 情绪标记），每条一行。

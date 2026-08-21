@@ -12,7 +12,7 @@
    YISHI=~/.local/share/忆时/scripts/memory_core.py
 
 1【言必检】调用工具：
-   python3 $YISHI recall "<用户刚才的话>" --limit 5
+   python3 $YISHI recall "<用户刚才的话>"
    → 命中了：先把每条摘要读全（勿只读首行），回答时融入相关记忆。
    → 空了：换一组同义词/英文再查一次；仍空，才可继续，且回答开头标注「无记忆」。
    绝不允许：不查直接答、查了不读结果、空查即答。
@@ -184,7 +184,7 @@ LOCAL_BASE=~/.local/share/忆时; YISHI=$LOCAL_BASE/scripts/memory_core.py; MEMO
 python3 $YISHI store --type decision --keywords "k1,k2" --emotion 0.5 "记忆内容"
 
 # recall：检索/核实
-python3 $YISHI recall "关键词 关键词" --limit 5
+python3 $YISHI recall "关键词 关键词"
 
 # 常用扩展：--scene 场景  --force 强制新增  --type-filter emotion --min-weight 0.5  --no-embed 快速检索
 # 其他子命令：forget 删除  stats 统计  export 导出  recover 恢复

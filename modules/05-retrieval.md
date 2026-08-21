@@ -103,6 +103,6 @@ AI (第三轮):
 | 场景 | 参数 |
 |------|------|
 | 用户提到模糊概念 | `recall "概念" --limit 3` |
-| 用户追问详情 | `recall "概念" --limit 5 --expand` |
+| 用户追问详情 | `recall "概念" --limit 3 --expand` |
 | 需要精确回忆 | `recall "精确词" --min-weight 0.6` |
 | 话题转换时主动闪回 | `recall "新话题" --limit 2 --expand` |

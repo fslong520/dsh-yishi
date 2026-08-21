@@ -24,10 +24,10 @@
 
 ```bash
 # 基础检索 - 返回最相关的N条
-python3 scripts/memory_core.py recall "查询内容" --limit 5
+python3 scripts/memory_core.py recall "查询内容" --limit 3
 
 # 带联想扩散的深度检索
-python3 scripts/memory_core.py recall "查询内容" --limit 5 --expand
+python3 scripts/memory_core.py recall "查询内容" --limit 3 --expand
 
 # 按类型过滤
 python3 scripts/memory_core.py recall "偏好" --type-filter preference
