@@ -94,7 +94,6 @@ def build_mindmap(data, out):
             "recall": int(md.get("recall_count", 0) or 0),
             "topic": classify(kw),
             "c": summarize(m.get("content", "")),
-            "full": (m.get("content", "") or "").strip(),
         })
 
     # 构建脑图树数据
@@ -178,7 +177,6 @@ def make_leaf(m):
         "id": m["id"],
         "emotion": m["emotion"],
         "date": m["date"],
-        "full": m["full"],
         "keywords": m["keywords"],
         "freq": m["freq"],
         "recall": m["recall"],

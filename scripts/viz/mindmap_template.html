@@ -5,319 +5,244 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>忆时 · 记忆脑图</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; background: #111827; color: #e5e7eb; overflow: hidden; }
-#app { width: 100vw; height: 100vh; position: relative; }
-svg { width: 100%; height: 100%; display: block; }
-#hdr {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-  display: flex; align-items: center; gap: 16px;
-  padding: 12px 20px; background: linear-gradient(180deg,rgba(17,24,39,.95),rgba(17,24,39,.7));
-  backdrop-filter: blur(6px); border-bottom: 1px solid #1f2937;
+:root{
+  --bg:#0f172a; --bg2:#1e293b; --border:#334155; --text:#e2e8f0; --muted:#94a3b8;
+  --accent:#2EC4B6; --accent2:#9B5DE5;
 }
-#hdr h1 { font-size: 18px; font-weight: 700; background: linear-gradient(90deg,#2EC4B6,#9B5DE5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-#hdr .meta { font-size: 12px; color: #9ca3af; }
-#hdr .legend { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-.lg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #d1d5db; }
-.lg i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-#controls {
-  position: absolute; bottom: 16px; right: 16px; z-index: 10;
-  display: flex; flex-direction: column; gap: 6px;
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  background:radial-gradient(1200px 800px at 20% -10%,#1e3a5f 0%,transparent 60%),
+             radial-gradient(1000px 700px at 110% 110%,#3b1e5f 0%,transparent 55%),
+             var(--bg);
+  color:var(--text); overflow:hidden;
 }
-.btn {
-  background: #1f2937; border: 1px solid #374151; color: #e5e7eb;
-  padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; text-align: center;
-  transition: all .2s; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+#app{height:100vh;display:flex;flex-direction:column}
+/* 顶栏 */
+#hdr{
+  display:flex;align-items:center;gap:14px;padding:14px 22px;
+  background:rgba(15,23,42,.85);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);flex:0 0 auto;
 }
-.btn:hover { background: #374151; border-color: #4b5563; }
-#tooltip {
-  position: absolute; z-index: 20; max-width: 440px; max-height: 320px; overflow-y: auto;
-  background: rgba(31,41,55,.98); border: 1px solid #4b5563; border-radius: 10px;
-  padding: 14px; font-size: 13px; line-height: 1.6; color: #e5e7eb;
-  box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; display: none;
-  backdrop-filter: blur(8px);
+.logo{font-size:22px}
+#hdr h1{
+  font-size:17px;font-weight:700;letter-spacing:.5px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
 }
-#tooltip .t-h { font-weight: 700; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
-#tooltip .t-meta { font-size: 11px; color: #9ca3af; margin-bottom: 6px; }
-#tooltip .t-body { color: #d1d5db; font-size: 12px; }
-#help {
-  position: absolute; top: 64px; left: 16px; z-index: 10;
-  font-size: 11px; color: #9ca3af; line-height: 1.8;
-  background: rgba(31,41,55,.85); padding: 8px 12px; border-radius: 8px;
-  border: 1px solid #374151; backdrop-filter: blur(4px);
+#hdr .meta{font-size:12px;color:var(--muted)}
+#legend{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text);background:rgba(51,65,85,.4);padding:3px 9px;border-radius:20px;border:1px solid var(--border)}
+.lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
+/* 主体 */
+#main{flex:1 1 auto;overflow:auto;padding:26px 30px 40px;position:relative}
+#guide{
+  position:sticky;top:0;z-index:5;font-size:11px;color:var(--muted);
+  background:linear-gradient(180deg,var(--bg) 60%,transparent);
+  padding:0 0 8px;
 }
-.link { stroke: #4b5563; stroke-width: 1.5; fill: none; }
-.link.open { opacity: .8; }
-.node-label { font-size: 12px; fill: #e5e7eb; paint-order: stroke; stroke: #111827; stroke-width: 3px; stroke-linejoin: round; }
-.node-label.lv2 { font-size: 11px; fill: #fbbf24; }
-.node-label.lv3 { font-size: 10px; fill: #9ca3af; }
-g.node circle { cursor: pointer; stroke: #111827; stroke-width: 2; }
-g.node:hover circle { filter: brightness(1.3); }
-g.node .collapse-mark { fill: #fff; font-size: 9px; stroke: none; pointer-events: none; }
+/* 树 */
+ul.tree,ul.tree ul{list-style:none;padding-left:34px;margin:0}
+ul.tree>li{margin:2px 0}
+li.t-n{position:relative}
+/* 引导线（左） */
+li.t-n::before{
+  content:"";position:absolute;left:-20px;top:-12px;bottom:0;width:22px;
+  border-left:1.5px solid var(--border);border-bottom:1.5px solid var(--border);
+  border-radius:0 0 0 6px;
+}
+li.t-n:last-child::after{
+  content:"";position:absolute;left:-20px;top:-12px;bottom:50%;
+  border-left:1.5px solid var(--border);
+}
+/* 节点行 */
+.nrow{
+  display:flex;align-items:center;gap:9px;min-height:32px;
+  padding:4px 12px 4px 8px;border-radius:10px;cursor:pointer;
+  transition:background .15s,transform .1s;position:relative;
+}
+.nrow:hover{background:rgba(51,65,85,.5);transform:translateX(2px)}
+.nrow.collapsed .caret{transform:rotate(-90deg)}
+.caret{
+  width:18px;height:18px;flex:0 0 18px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:12px;transition:transform .2s;user-select:none;
+}
+.caret.hidden{visibility:hidden}
+.ndot{width:13px;height:13px;border-radius:50%;flex:0 0 13px;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
+.ndot.root{width:20px;height:20px;background:conic-gradient(var(--accent),var(--accent2),var(--accent));box-shadow:0 0 14px rgba(46,196,182,.4)}
+.nname{font-size:14px;font-weight:500;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li.type>.nrow .nname{font-size:14px;font-weight:600}
+li.topic>.nrow .nname{font-size:13px;color:#fbbf24;font-weight:500}
+li.mem>.nrow .nname{font-size:12px;color:var(--text);font-weight:400}
+.ncount{
+  font-size:11px;color:var(--muted);background:rgba(51,65,85,.45);
+  padding:1px 8px;border-radius:12px;flex:0 0 auto;min-width:24px;text-align:center;
+}
+.ntype{font-size:10px;color:var(--muted);flex:0 0 auto;margin-right:2px}
+/* 摘要卡（悬停显示全文提示） */
+.mem .nname .sum{color:var(--muted);font-size:11px;margin-left:8px}
+/* 记忆叶子行 */
+li.mem>.nrow{
+  min-height:26px;padding:2px 12px 2px 8px;border-left:3px solid transparent;
+}
+li.mem>.nrow:hover{border-left-color:var(--accent)}
+/* 底部说明 */
+#foot{flex:0 0 auto;padding:10px 22px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);background:rgba(15,23,42,.6)}
+#foot b{color:var(--accent)}
+/* toast */
+#toast{
+  position:fixed;left:50%;bottom:70px;transform:translateX(-50%) translateY(20px);
+  background:rgba(30,41,59,.98);border:1px solid var(--accent);color:var(--text);
+  padding:10px 18px;border-radius:10px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+  opacity:0;transition:all .3s;z-index:50;pointer-events:none;max-width:70%;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="hdr">
-    <h1>🎋 忆时 · 记忆脑图</h1>
+    <span class="logo">🎋</span>
+    <h1>忆时 · 记忆脑图</h1>
     <span class="meta" id="meta"></span>
-    <div class="legend" id="legend"></div>
+    <div id="legend"></div>
   </div>
-  <div id="help">🖱 滚轮缩放 · 拖动平移<br>🔘 点节点展开/收起</div>
-  <div id="tooltip"><div class="t-h"></div><div class="t-meta"></div><pre class="t-body"></pre></div>
-  <div id="controls">
-    <button class="btn" onclick="expandAll()">▶ 全部展开</button>
-    <button class="btn" onclick="collapseAll()">◀ 全部收起</button>
-    <button class="btn" onclick="resetView()">⟲ 归位</button>
+  <div id="main">
+    <div id="guide">▸ 点击节点展开/收起，逐层下钻。先览概貌，再探细节——全文请至尾部提示用「/忆时 查找」检索。</div>
+    <div id="tree"></div>
   </div>
-  <svg id="canvas"><g id="root-g" transform="translate(600,400)"></g></svg>
+  <div id="foot"></div>
+  <div id="toast"></div>
 </div>
 <script>
 var DATA = /*__MINDMAP_DATA__*/;
 var COLORS = (DATA && DATA.type_colors) || {};
-var svg = document.getElementById('canvas');
-var rootG = document.getElementById('root-g');
-var tip = document.getElementById('tooltip');
-var dragX = 600, dragY = 400, scale = 1;
+var NAMES  = (DATA && DATA.type_names)  || {};
+var EMOJIS = (DATA && DATA.type_emojis) || {};
 
-// 布局参数
-var R0 = 0, R1 = 120, R2 = 240, R3 = 380;
-var NODE_SIZE = { root: 28, type: 22, topic: 16, memory: 8 };
+// 一次性构建树 DOM
+var treeEl = document.getElementById('tree');
 
-// 记录所有节点引用
-var nodes = [];
+function buildTree(node, collapsedAll) {
+  var el = document.createElement('li');
+  el.className = 't-n ' + (node.type || '');
+  var hasKids = node.children && node.children.length > 0;
+  var collapsed = collapsedAll ? true : (node._collapsed === true);
 
-// 清理旧内容
-function render() {
-  rootG.innerHTML = '';
-  nodes = [];
-  var tree = DATA.tree;
-  if (!tree) return;
-  tree._collapsed = false;
-  calcLayout(tree, 0, 0, 0, 360);
-  var links = [];
-  collectLinks(tree, links);
-  for (var l of links) {
-    var line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    var cls = l.open ? 'link open' : 'link';
-    line.setAttribute('class', cls);
-    line.setAttribute('x1', l.x1); line.setAttribute('y1', l.y1);
-    line.setAttribute('x2', l.x2); line.setAttribute('y2', l.y2);
-    rootG.insertBefore(line, rootG.firstChild);
-  }
-  for (var n of nodes) { drawNode(n); }
-  setMeta();
-  setLegend();
-}
+  var row = document.createElement('div');
+  row.className = 'nrow' + (collapsed ? ' collapsed' : '');
 
-function calcLayout(node, depth, startAngle, totalAngle, parentAngle) {
-  if (depth === 0) {
-    node._x = 0; node._y = 0; node._angle = 0;
-    node._r = NODE_SIZE.root || 28;
-    node._collapsed = false;
-    nodes.push(node);
-    var children = node.children || [];
-    if (children.length) {
-      var seg = 360 / children.length;
-      for (var i = 0; i < children.length; i++) {
-        var a = seg * i;
-        calcLayout(children[i], 1, a, seg, seg);
-      }
-    }
-    return;
-  }
-  var radius = depth === 1 ? R1 : (depth === 2 ? R2 : R3);
-  var angle = startAngle + totalAngle / 2;
-  var rad = angle * Math.PI / 180;
-  node._x = Math.cos(rad) * radius;
-  node._y = Math.sin(rad) * radius;
-  node._angle = angle;
-  node._r = NODE_SIZE[depth === 1 ? 'type' : (depth === 2 ? 'topic' : 'memory')] || 10;
-  node._collapsed = node._collapsed === undefined ? true : node._collapsed;
-  node._depth = depth;
-  node._parentAngle = totalAngle;
-  nodes.push(node);
+  // caret
+  var caret = document.createElement('span');
+  caret.className = 'caret' + (hasKids ? '' : ' hidden');
+  caret.innerHTML = '▾';
+  row.appendChild(caret);
 
-  if (node._collapsed) return;
-  var children = node.children || [];
-  if (!children.length) return;
-  // 子节点分布在此节点角度周围
-  var spread = Math.min(60, 360 / children.length * 0.7);
-  var half = spread / 2;
-  if (children.length === 1) {
-    calcLayout(children[0], depth+1, angle-2, 4, 4);
+  // dot
+  var dot = document.createElement('span');
+  dot.className = 'ndot' + (node.type === 'root' ? ' root' : '');
+  dot.style.background = node.color || '#555';
+  row.appendChild(dot);
+
+  // name
+  var name = document.createElement('span');
+  name.className = 'nname';
+  var txt = node.name || '';
+  if (node.type === 'memory') {
+    name.innerHTML = '<span class="sum">' + esc(txt) + '</span>';
   } else {
-    var seg = spread / children.length;
-    for (var i = 0; i < children.length; i++) {
-      var a = angle - half + seg * (i + 0.5);
-      calcLayout(children[i], depth+1, a, seg, seg);
+    name.textContent = txt;
+  }
+  row.appendChild(name);
+
+  // count
+  if (hasKids) {
+    var cnt = document.createElement('span');
+    cnt.className = 'ncount';
+    cnt.textContent = node.count || '';
+    row.appendChild(cnt);
+  }
+
+  el.appendChild(row);
+
+  // children
+  if (hasKids) {
+    var ul = document.createElement('ul');
+    if (collapsed) ul.style.display = 'none';
+    var kids = node.children;
+    // 分类排序：有子节点在前
+    kids = kids.slice().sort(function(a,b){ return (b.children&&b.children.length?1:0) - (a.children&&a.children.length?1:0); });
+    for (var i=0;i<kids.length;i++){
+      ul.appendChild(buildTree(kids[i], collapsedAll));
     }
-  }
-}
-
-function collectLinks(node, arr) {
-  if (!node.children) return;
-  for (var c of node.children) {
-    var open = !node._collapsed;
-    arr.push({ x1: node._x, y1: node._y, x2: c._x, y2: c._y, open: open });
-    if (!node._collapsed) collectLinks(c, arr);
-  }
-}
-
-function drawNode(node) {
-  var g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('class','node');
-  var r = node._r || 8;
-  var circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  circle.setAttribute('cx', node._x);
-  circle.setAttribute('cy', node._y);
-  circle.setAttribute('r', r);
-  var color = node.color || '#555';
-  if (node.type === 'root') color = '#2EC4B6';
-  circle.setAttribute('fill', color);
-  circle.setAttribute('opacity', node.type === 'memory' ? '0.7' : '1');
-  g.appendChild(circle);
-
-  // 折叠/展开标记
-  var children = node.children || [];
-  if (children.length && node.type !== 'memory') {
-    var mark = node._collapsed ? '+' : '−';
-    var txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('class','collapse-mark');
-    txt.setAttribute('x', node._x);
-    txt.setAttribute('y', node._y + 3.5);
-    txt.setAttribute('text-anchor','middle');
-    txt.textContent = mark;
-    g.appendChild(txt);
+    el.appendChild(ul);
   }
 
-  // 文本标签（仅根、类型、主题层级显示，第三层只显示部分）
-  if (node.type !== 'memory' || node._depth <= 2) {
-    var label = document.createElementNS('http://www.w3.org/2000/svg','text');
-    label.setAttribute('class', 'node-label' + (node._depth === 2 ? ' lv2' : (node._depth >= 3 ? ' lv3' : '')));
-    label.setAttribute('x', node._x + r + 6);
-    label.setAttribute('y', node._y + 4);
-    var name = node.name || '';
-    if (name.length > 30) name = name.slice(0, 28) + '…';
-    label.textContent = name;
-    g.appendChild(label);
-  }
-
-  // 点击切换折叠
-  g.addEventListener('click', function(ev) {
+  // click
+  row.addEventListener('click', function(ev){
     ev.stopPropagation();
-    if (node.type === 'memory') return;
-    if (!node.children || !node.children.length) return;
-    node._collapsed = !node._collapsed;
-    render();
-  });
-
-  // 悬停显示详情
-  g.addEventListener('mouseenter', function(ev) {
-    if (node.type !== 'memory') {
-      // 显示类型/主题概要
-      var cnt = countDescendants(node);
-      tip.querySelector('.t-h').innerHTML = (node.type_emoji || '') + ' ' + (node.name || '');
-      tip.querySelector('.t-meta').textContent = cnt + ' 条记忆';
-      tip.querySelector('.t-body').textContent = '';
-      tip.style.display = 'block';
-      moveTip(ev);
+    if (!hasKids) {
+      showDetail(node, ev);
       return;
     }
-    // 记忆叶子
-    tip.querySelector('.t-h').innerHTML = (node.type_emoji || '📄') + ' ' + (node.type_name || '') + ' · ' + (node.date || '');
-    tip.querySelector('.t-meta').textContent = (node.keywords ? '🏷️ ' + node.keywords.join(', ') : '') + ' · 情绪 ' + (node.emotion||0.5).toFixed(1) + ' · 检索 ' + (node.recall||0) + ' 次';
-    var full = node.full || '（无内容）';
-    if (full.length > 500) full = full.slice(0, 500) + '…';
-    tip.querySelector('.t-body').textContent = full;
-    tip.style.display = 'block';
-    moveTip(ev);
+    row.classList.toggle('collapsed');
+    var list = el.querySelector(':scope > ul');
+    if (list) {
+      var showing = list.style.display !== 'none';
+      list.style.display = showing ? 'none' : 'block';
+    }
   });
-  g.addEventListener('mousemove', moveTip);
-  g.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
-
-  rootG.appendChild(g);
+  return el;
 }
 
-function countDescendants(node) {
-  var c = 0;
-  if (!node.children) return 0;
-  for (var ch of node.children) {
-    if (ch.type === 'memory') c++;
-    else c += countDescendants(ch);
-  }
-  return c;
+function showDetail(node, ev) {
+  // 记忆叶子：只有摘要，全文经检索取
+  var meta = [];
+  if (node.date) meta.push(node.date);
+  if (node.type_name) meta.push((node.type_emoji||'') + ' ' + node.type_name);
+  if (node.keywords && node.keywords.length) meta.push('🏷️ ' + node.keywords.slice(0,4).join('、'));
+  if (node.emotion != null) meta.push('情绪 ' + (+node.emotion).toFixed(1));
+  if (node.recall != null) meta.push('检索 ' + node.recall + ' 次');
+  toast('📍 ' + node.name + '\n' + (meta.join(' · ') || '') + '\n\n全文请用 「/忆时 查找」 检索该条记忆。', true);
 }
 
-function moveTip(ev) {
-  var bx = document.getElementById('app').getBoundingClientRect();
-  var x = Math.min(ev.clientX - bx.left + 12, window.innerWidth - 460);
-  var y = Math.min(ev.clientY - bx.top + 12, window.innerHeight - 340);
-  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+function toast(msg, sticky){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(function(){ t.classList.remove('show'); }, sticky ? 3200 : 900);
 }
 
-// 缩放与平移
-svg.addEventListener('wheel', function(ev) {
-  ev.preventDefault();
-  var d = ev.deltaY > 0 ? 0.9 : 1.1;
-  scale *= d;
-  scale = Math.max(0.2, Math.min(3, scale));
-  rootG.setAttribute('transform', 'translate('+dragX+','+dragY+') scale('+scale+')');
-}, { passive: false });
+function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-var dragging = false, mx = 0, my = 0;
-svg.addEventListener('mousedown', function(ev) {
-  if (ev.target === svg || ev.target.tagName === 'svg') {
-    dragging = true; mx = ev.clientX; my = ev.clientY;
-  }
-});
-svg.addEventListener('mousemove', function(ev) {
-  if (!dragging) return;
-  var dx = ev.clientX - mx, dy = ev.clientY - my;
-  dragX += dx; dragY += dy;
-  mx = ev.clientX; my = ev.clientY;
-  rootG.setAttribute('transform', 'translate('+dragX+','+dragY+') scale('+scale+')');
-});
-svg.addEventListener('mouseup', function() { dragging = false; });
-svg.addEventListener('mouseleave', function() { dragging = false; });
+// 初始默认：只展开 root 一层（显示类型总览），类型/主题皆收起（渐进披露）
+function expandDefault(node){
+  if (node.children) node.children.forEach(function(c){
+    c._collapsed = true; // 类型收起 → 主题隐藏
+    if (c.children) c.children.forEach(function(g){ g._collapsed = true; }); // 主题收起 → 记忆隐藏
+  });
+}
+if (DATA.tree){ DATA.tree._collapsed = false; expandDefault(DATA.tree); }
+treeEl.appendChild(buildTree(DATA.tree, false));
 
-// 控制按钮
-function expandAll() { expandNode(DATA.tree); render(); }
-function collapseAll() { collapseNode(DATA.tree); DATA.tree._collapsed = false; render(); }
-function resetView() { dragX = 600; dragY = 400; scale = 1; rootG.setAttribute('transform','translate(600,400) scale(1)'); }
-
-function expandNode(n) {
-  n._collapsed = false;
-  if (n.children) for (var c of n.children) expandNode(c);
+// 元信息
+document.getElementById('meta').textContent = '共 ' + (DATA.total||0) + ' 条记忆 · 导出 ' + (DATA.export_date||'')
+  + ' · 脑图仅载摘要，全文走检索';
+// 图例
+var lgEl = document.getElementById('legend');
+for (var t in COLORS){
+  var n = NAMES[t] || t;
+  var s = document.createElement('span');
+  s.className='lg';
+  s.innerHTML = '<i style="background:'+COLORS[t]+'"></i>' + n;
+  lgEl.appendChild(s);
 }
-function collapseNode(n) {
-  if (n.children) for (var c of n.children) { c._collapsed = true; collapseNode(c); }
-}
-
-function setMeta() {
-  document.getElementById('meta').textContent = '共 ' + (DATA.total || 0) + ' 条记忆 · 导出 ' + (DATA.export_date || '');
-}
-function setLegend() {
-  var el = document.getElementById('legend');
-  el.innerHTML = '';
-  var names = DATA.type_names || {};
-  for (var t in COLORS) {
-    var n = names[t] || t;
-    el.innerHTML += '<span class="lg"><i style="background:'+COLORS[t]+'"></i>'+n+'</span>';
-  }
-}
-
-// 自适应尺寸
-function resize() {
-  var w = window.innerWidth, h = window.innerHeight;
-  svg.setAttribute('viewBox', '0 0 '+w+' '+h);
-  svg.setAttribute('width', w); svg.setAttribute('height', h);
-  dragX = w/2; dragY = h/2;
-  rootG.setAttribute('transform', 'translate('+dragX+','+dragY+') scale('+scale+')');
-}
-window.addEventListener('resize', resize);
-resize();
-render();
+// 底部
+document.getElementById('foot').innerHTML =
+  '💡 <b>脑图为记忆索引</b>——只含类型/主题/摘要，省 token。想看某条全文：<b>/忆时 查找 &lt;关键词&gt;</b> 检索最相关的记忆。'
+  + ' 共 ' + (DATA.total||0) + ' 条 · 逐层展开。';
 </script>
 </body>
 </html>
