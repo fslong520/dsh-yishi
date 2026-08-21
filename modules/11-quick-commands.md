@@ -123,7 +123,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/vi
 ```bash
 MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/mindmap.py
 ```
-产出交互式记忆脑图（类型→主题→记忆径向树）。详见 modules/12-viz-profile.md「记忆脑图」。
+产出交互式**记忆图谱**（网状力导向图：节点按类型着色、大小∝容量×频次、连线为语义关联、悬停看全文）。详见 modules/12-viz-profile.md「记忆脑图」。
 
 ## 画像（profile）
 
