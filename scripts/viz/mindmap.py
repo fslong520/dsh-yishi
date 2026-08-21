@@ -176,21 +176,13 @@ def _load_relationships(records):
     return links
 
 
-# 同主题关系合并阈值：score ≥ 此值视为"关系很密"
-MERGE_SCORE = 0.62
-# 剩余孤立记忆：同主题达此数才并成一个补充节点（否则保留单个）
-LEFTOVER_GROUP_MIN = 3
-
-
 def _merge_similar(records, links):
-    """两阶段聚合，粒度为"关系簇 + 主题补充组"，不过细也不过于集中。
+    """关系簇合并 + 孤立记忆保留单节点，目标 ~300 节点。
 
-    阶段一 union-find：score≥MERGE_SCORE 且同主题的记忆并成关系簇
-      → 抓住真正相似的记忆，产出簇节点（网络骨架，带真实关系边）。
-    阶段二 补充：未入任何簇的孤立记忆按主题聚合，每主题≥LEFTOVER_GROUP_MIN
-      并成一个「主题·分散收录」节点，否则保留为单节点。
-      → 把 200+ 孤立记忆收纳为少量主题组，省得满屏碎片。
-    连线：簇/组节点间按源记忆关系聚合（同源同目标并一条）。
+    策略：
+    - 核心：同主题关系簇（score≥0.60，内部密集区合并为簇节点）
+    - 外侧：无关系的孤立记忆保留为单节点（不折叠主题）
+    - 连线：簇/单节点间按源关系聚合
 
     返回 (nodes, links)。
     """
@@ -210,7 +202,7 @@ def _merge_similar(records, links):
         if ra != rb:
             parent[rb] = ra
     for l in links:
-        if l["score"] >= MERGE_SCORE:
+        if l["score"] >= 0.60:
             s, t = l["source"], l["target"]
             if s in rmap and t in rmap and rmap[s]["topic"] == rmap[t]["topic"]:
                 union(s, t)
@@ -218,30 +210,31 @@ def _merge_similar(records, links):
     for rid in rmap:
         clusters[find(rid)].append(rid)
     rel_clusters = [c for c in clusters.values() if len(c) > 1]
+    # 合并后占用的覆盖 id 集
     covered = {x for c in rel_clusters for x in c}
 
     nodes = []
-    node_key = {}          # 记忆 id -> 节点可见 id
+    node_key = {}
 
-    def make_node(ids, title_suffix=""):
+    def make_node(ids, _is_single=False):
         grs = [rmap[i] for i in ids]
         type_count = _C(r["type"] for r in grs)
         dom_type = type_count.most_common(1)[0][0]
         center = max(grs, key=lambda r: (r["freq"], r["content_len"]))
-        grs_sorted = sorted(grs, key=lambda r: r["date"], reverse=True)
         members = [
             {"title": r["title"], "date": r["date"], "keywords": r["keywords"],
              "freq": r["freq"], "type": r["type"]}
-            for r in grs_sorted
+            for r in grs
         ]
         cid = f"grp_{len(nodes)}"
-        title = f"{center['title'][:28]}…（{len(grs)}条）" if title_suffix and len(grs) > 1 else \
-                f"{center['title'][:30]}（{len(grs)}条）"
+        title = center["title"]
+        if len(ids) > 1:
+            title = f"{center['title'][:28]}…（{len(ids)}条相似）"
         nodes.append({
             "id": cid,
             "title": title,
             "label": center["title"],
-            "full": "\n".join(m["title"] for m in members),
+            "full": center.get("_full", center["title"]) if len(ids) == 1 else "\n".join(m["title"] for m in members),
             "type": dom_type,
             "type_name": TYPE_NAMES.get(dom_type, dom_type),
             "type_emoji": TYPE_EMOJIS.get(dom_type, ""),
@@ -252,27 +245,19 @@ def _merge_similar(records, links):
             "freq": sum(r["freq"] for r in grs),
             "content_len": sum(r["content_len"] for r in grs),
             "color": TYPE_COLORS.get(dom_type, "#89b4fa"),
-            "members": members,
-            "member_count": len(grs),
+            "members": members if len(ids) > 1 else None,
+            "member_count": len(ids),
         })
         for i in ids:
             node_key[i] = cid
 
-    # 关系簇节点
+    # 关系簇
     for c in rel_clusters:
         make_node(c)
-    # 阶段二节点（孤立记忆按主题补充，上限 25 防大球）
-    leftover = [r for r in records if r["id"] not in covered]
-    left_by_topic = defaultdict(list)
-    for r in leftover:
-        left_by_topic[r["topic"]].append(r["id"])
-    for topic, ids in sorted(left_by_topic.items(), key=lambda x: -len(x[1])):
-        if len(ids) >= LEFTOVER_GROUP_MIN:
-            for chunk in range(0, len(ids), 25):
-                make_node(ids[chunk:chunk+25], title_suffix=f"{topic}分散")
-        else:
-            for single in ids:
-                make_node([single])
+    # 孤立记忆保留单节点
+    for r in records:
+        if r["id"] not in covered:
+            make_node([r["id"]], _is_single=True)
 
     # 连线：节点间按源关系聚合
     agg = defaultdict(list)
