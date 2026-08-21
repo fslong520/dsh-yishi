@@ -3,138 +3,326 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>忆时 · 记忆脑图</title>
-<style>/*__JSMIND_CSS__*/</style>
+<title>忆时 · 记忆图谱</title>
 <style>
-:root{--bg:#0b1220;--text:#e8eef7;--muted:#94a3b8}
+:root{--bg:#11111B;--panel:#181825;--border:#313244;--text:#cdd6f4;--muted:#a6adc8;--hl:#89b4fa}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%}
-body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+html,body{height:100%;overflow:hidden}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
 #app{height:100vh;display:flex;flex-direction:column}
-#hdr{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(11,18,32,.92);
-  border-bottom:1px solid #263449;backdrop-filter:blur(8px);flex:0 0 auto;position:relative;z-index:10}
-#hdr h1{font-size:17px;font-weight:800;background:linear-gradient(90deg,#2EC4B6,#9B5DE5,#F72585);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-#hdr .meta{font-size:12px;color:var(--muted)}
-#legend{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
-.lg{display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:16px;background:#1c2a42;border:1px solid #2a3a52}
-.lg i{width:8px;height:8px;border-radius:50%}
-#jsmind_container{flex:1 1 auto;position:relative;overflow:hidden}
-/* jsMind 深色主题覆写 */
-.jsmind{background:transparent !important}
-#jsmind_container jmnode{font-family:inherit;font-size:13px}
-#jsmind_container jmnode.root-node{font-size:17px;font-weight:800}
-/* 悬浮详情 */
-#tip{position:fixed;z-index:50;pointer-events:none;display:none;max-width:400px;
-  background:#132033;border:1px solid #2EC4B6;border-radius:10px;padding:12px 14px;
-  font-size:12px;line-height:1.55;box-shadow:0 10px 34px rgba(0,0,0,.5)}
-#tip .th{font-weight:700;margin-bottom:3px;display:flex;gap:6px;align-items:center}
-#tip .tm{font-size:11px;color:#8aa0bd;margin-bottom:4px}
-#tip .tb{color:#e2e8f0}
-/* 控制条 */
-#ctl{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:40;display:flex;gap:8px;
-  background:rgba(19,32,51,.95);border:1px solid #2a3a52;padding:6px 10px;border-radius:12px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
-.bt{background:#1c2a42;border:1px solid #2a3a52;color:#e8eef7;padding:5px 13px;border-radius:8px;cursor:pointer;font-size:12px;transition:all .15s;font-family:inherit}
-.bt:hover{background:#26395c;border-color:#2EC4B6}
+#hdr{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border);flex:0 0 auto;z-index:10}
+#hdr h1{font-size:16px;font-weight:800;background:linear-gradient(90deg,#2EC4B6,#9B5DE5,#F72585);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+#meta{font-size:11px;color:var(--muted);white-space:nowrap}
+#legend{display:flex;gap:6px;flex-wrap:wrap;margin-left:6px}
+.lg{display:flex;align-items:center;gap:5px;font-size:10px;padding:2px 8px;border-radius:6px;background:#1e1e2e;border:1px solid var(--border);white-space:nowrap}
+.lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
+#searchwrap{margin-left:auto;display:flex;gap:10px;align-items:center}
+#depthSel,.sel{padding:4px 8px;border-radius:6px;background:#1e1e2e;border:1px solid var(--border);color:var(--text);font-size:11px;outline:none}
+#search{background:#1e1e2e;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;font-size:12px;width:200px;outline:none}
+#search:focus{border-color:var(--hl)}
+#mapwrap{flex:1 1 auto;position:relative;overflow:hidden}
+#map{display:block;position:absolute;inset:0}
+#toolbar{position:absolute;left:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:20}
+.tbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.tbtn:hover{background:#313244;border-color:var(--hl)}
+#hint{position:absolute;right:16px;bottom:16px;z-index:20;font-size:11px;color:var(--muted);text-align:right;line-height:1.8;background:rgba(24,24,37,.8);padding:8px 12px;border-radius:8px;border:1px solid var(--border);pointer-events:none}
+#nodeinfo{position:absolute;left:16px;top:16px;z-index:20;font-size:12px;background:var(--panel);border:1px solid var(--hl);border-radius:10px;padding:12px 14px;max-width:360px;display:none;box-shadow:0 10px 30px rgba(0,0,0,.4);line-height:1.6}
+#nodeinfo .nh{font-weight:700;font-size:13px;margin-bottom:3px}
+#nodeinfo .nm{font-size:11px;color:var(--muted);margin-bottom:4px}
+#nodeinfo .nb{color:var(--text);font-size:12px;max-height:180px;overflow-y:auto}
+#nodeinfo #nbtn{margin-top:8px;background:#2EC4B6;border:none;color:#0b1220;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600}
+#statbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:20;font-size:11px;color:var(--muted);background:rgba(24,24,37,.8);padding:6px 14px;border-radius:8px;border:1px solid var(--border);white-space:nowrap}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="hdr">
-    <h1>🎋 忆时 · 记忆脑图</h1>
-    <span class="meta" id="meta"></span>
+    <h1>🌐 忆时 · 记忆图谱</h1>
+    <span id="meta"></span>
     <div id="legend"></div>
+    <div id="searchwrap">
+      <span style="font-size:11px;color:var(--muted)">层级</span>
+      <select id="depthSel"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select>
+      <input id="search" type="text" placeholder="🔍 搜索记忆…" />
+    </div>
   </div>
-  <div id="jsmind_container"></div>
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="toolbar">
+      <button class="tbtn" id="tbGlobal" title="全局视图">🌐</button>
+      <button class="tbtn" id="tbActive" title="以当前节点为中心">◎</button>
+      <button class="tbtn" id="tbCenter" title="重置缩放居中">⟳</button>
+    </div>
+    <div id="hint">拖动节点 · 滚轮缩放<br>点击节点：高亮邻接·看详情<br>空白拖动平移画布</div>
+    <div id="nodeinfo"><div class="nh"></div><div class="nm"></div><div class="nb"></div><button id="nbtn">关闭高亮</button></div>
+    <div id="statbar"></div>
+  </div>
 </div>
-<div id="tip"><div class="th"></div><div class="tm"></div><div class="tb"></div></div>
-<div id="ctl">
-  <button class="bt" id="bExpand">全部展开</button>
-  <button class="bt" id="bReset">归位</button>
-  <button class="bt" id="bCollapse">收起</button>
-</div>
-<script type="text/javascript">/*__JSMIND_JS__*/</script>
-<script type="text/javascript">
-var PAYLOAD = /*__MINDMAP_DATA__*/;
-var MIND = PAYLOAD.mind;
-var NAMES = PAYLOAD.type_names || {};
-var COLORS = PAYLOAD.type_colors || {};
-var tip = document.getElementById('tip');
+<script>__YISHI_GRAPH_DATA__</script>
+<script>/*__D3_JS__*/</script>
+<script>
+"use strict";
+var G = window.__YISHI_GRAPH__;
+var typeColor = G.type_colors || {};
+var typeName  = G.type_names || {};
+var typeEmoji = G.type_emojis || {};
 
-var options = {
-  container: 'jsmind_container',
-  editable: false,
-  theme: 'dark',
-  support_html: true,
-  view: {
-    engine: 'canvas',
-    hmargin: 120, vmargin: 60,
-    line_width: 2, line_color: '#455573', line_style: 'curved',
-    node_overflow: 'hidden',
-    zoom: {min: 0.3, max: 3, step: 0.1, mask_key: 17}
-  },
-  layout: {hspace: 34, vspace: 22, pspace: 15, cousin_space: 6}
-};
+// ---------- 数据 ----------
+var nodeById = {};
+var nodes0 = G.graph.nodes.map(function(n){ nodeById[n.id]=n; return n; });
+var links0 = G.graph.links;
 
-var jm = null;
-function initMind(){
-  if (jm) { jm.show(MIND); return; }
-  jm = new jsMind(options);
-  jm.show(MIND);
-  // 选择叶子 → 显示详情
-  jm.add_event_listener(function(type, data){
-    if (type !== 4) return; // 4 = select
-    var nodeId = typeof data === 'object' && data.id ? data.id : data;
-    try {
-      var node = jm.get_node(nodeId);
-      if (node && node.data && node.data._date_) {
-        showTip(node, event);
-      } else {
-        tip.style.display = 'none';
-      }
-    } catch(e){}
+// 邻居 & 度
+var neighborMap = {};
+links0.forEach(function(l){
+  (neighborMap[l.source]=neighborMap[l.source]||new Set()).add(l.target);
+  (neighborMap[l.target]=neighborMap[l.target]||new Set()).add(l.source);
+});
+var degree = {};
+nodes0.forEach(function(n){ degree[n.id]=(neighborMap[n.id]||new Set()).size; });
+var maxDegree = d3.max(nodes0, function(n){ return degree[n.id]; }) || 1;
+
+// 常量（MPE 同款）
+var Curm = 5, zxm = 14;
+
+// ---------- 画布 ----------
+var canvas = document.getElementById('map');
+var ctx = canvas.getContext('2d');
+var wrap = document.getElementById('mapwrap');
+var width, height, dpr = window.devicePixelRatio || 1;
+function resize(){
+  width = wrap.clientWidth; height = wrap.clientHeight;
+  canvas.width = width*dpr; canvas.height = height*dpr;
+  canvas.style.width = width+'px'; canvas.style.height = height+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize);
+
+// ---------- 力导 ----------
+var simulation = d3.forceSimulation()
+  .force('link', d3.forceLink().id(function(d){ return d.id; }).distance(70).strength(0.5))
+  .force('charge', d3.forceManyBody().strength(-220))
+  .force('x', d3.forceX().strength(0.045))
+  .force('y', d3.forceY().strength(0.045));
+
+// 渲染状态
+var zoomT = null;                        // 当前 zoom transform（d3.zoomIdentity 基础）
+var activeNodeId = null;
+var hoverNodeId = null;
+var linksUnder = new Set();              // active 高亮相邻 link 目标 id 集
+var showDetail = false;
+
+// ---------- 视图数据（当前展示子集）----------
+var vNodes = [], vLinks = [];
+function setView(ns, ls){ vNodes=ns; vLinks=ls;
+  simulation.nodes(vNodes);
+  simulation.force('link').links(vLinks);
+  simulation.alpha(0.9).restart();
+  updateStat();
+  render();
+}
+
+// ---------- 渲染 ----------
+function nodeRadius(n){ return (Curm + degree[n.id]/maxDegree*(zxm-Curm)); }
+function nodeColor(n){
+  if(activeNodeId && (n.id===activeNodeId || linksUnder.has(n.id))) {
+    if(n.id===activeNodeId) return '#f38ba8';
+    return '#a6e3a1'; // 邻居
+  }
+  if(activeNodeId) return 'rgba(137,180,250,0.28)'; // 不相关则淡
+  return n.color || '#89b4fa';
+}
+function render(){
+  ctx.clearRect(0,0,width,height);
+  ctx.save();
+  if(zoomT){ ctx.translate(zoomT.x, zoomT.y); ctx.scale(zoomT.k, zoomT.k); }
+
+  // 链接
+  vLinks.forEach(function(l){
+    var s=l.source, t=l.target;
+    if(s.x===undefined||t.x===undefined) return;
+    var dim = false;
+    if(activeNodeId && s.id!==activeNodeId && t.id!==activeNodeId && !linksUnder.has(s.id) && !linksUnder.has(t.id)) dim=true;
+    ctx.beginPath();
+    ctx.moveTo(s.x,s.y); ctx.lineTo(t.x,t.y);
+    ctx.strokeStyle = dim ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = dim ? 0.4 : 0.8;
+    ctx.stroke();
   });
-}
-initMind();
 
-/* 悬停与点击对叶子的详情 */
-function showTip(node, e){
-  var d = node.data || {};
-  var md = d._type_name_ || '';
-  tip.querySelector('.th').innerHTML =
-    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(d._color_||'#888')+'"></span>'+(d._date_||'')+' · '+(d._type_emoji_||'')+' '+md;
-  var meta=[];
-  if (d._keywords_ && d._keywords_.length) meta.push('🏷️ '+d._keywords_.slice(0,5).join('、'));
-  if (d._emotion_ != null) meta.push('情绪 '+ (+d._emotion_).toFixed(1));
-  if (d._recall_ != null) meta.push('检索 '+d._recall_+'次');
-  tip.querySelector('.tm').textContent = meta.join(' · ');
-  var body = node.topic || '';
-  if (body.length > 600) body = body.slice(0,600)+'…';
-  tip.querySelector('.tb').textContent = body;
-  tip.style.display = 'block';
-  moveTip(e);
+  // 节点
+  vNodes.forEach(function(n){
+    if(n.x===undefined) return;
+    var r = nodeRadius(n);
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, 2*Math.PI);
+    ctx.fillStyle = nodeColor(n);
+    ctx.fill();
+    ctx.lineWidth = (activeNodeId&&n.id===activeNodeId)?2:1;
+    ctx.strokeStyle = '#0b1220';
+    ctx.stroke();
+    // 标签（缩放着 >0.5）
+    if(zoomT && zoomT.k>=0.5){
+      var label=(n.label||'').slice(0,20);
+      ctx.font=(10)+'px "PingFang SC",sans-serif';
+      ctx.fillStyle=(activeNodeId&&n.id!==activeNodeId)?'rgba(205,214,244,0.5)':'#cdd6f4';
+      ctx.textAlign='center';
+      ctx.fillText(label, n.x, n.y-r-4);
+    }
+  });
+
+  ctx.restore();
 }
-function moveTip(e){
-  var rect = document.getElementById('app').getBoundingClientRect();
-  tip.style.left = (e.clientX - rect.left + 14) + 'px';
-  tip.style.top = (e.clientY - rect.top + 10) + 'px';
+simulation.on('tick', render);
+
+// ---------- zoom & 拖拽（d3） ----------
+var zoomBehavior = d3.zoom()
+  .scaleExtent([0.1, 10])
+  .on('zoom', function(event){ zoomT=event.transform; render(); });
+d3.select(canvas).call(zoomBehavior);
+// 拖节点
+function dragStart(event){
+  if(event.active===0) simulation.alphaTarget(0.25).restart();
+  event.subject.fx = event.subject.x;
+  event.subject.fy = event.subject.y;
 }
-window.addEventListener('mousemove', function(e){
-  if (tip.style.display === 'block') moveTip(e);
+function dragMove(event){
+  event.subject.fx = event.x;
+  event.subject.fy = event.y;
+}
+function dragEnd(event){
+  if(event.active===0) simulation.alphaTarget(0).alpha(0.2).restart();
+  event.subject.fx=null; event.subject.fy=null;
+}
+var nodeDrag = d3.drag()
+  .on('start', dragStart).on('drag', dragMove).on('end', dragEnd);
+
+// 把拖拽绑定到节点“虚拟对象”（在 mousedown 上接线）
+var dragPending=null;
+canvas.addEventListener('mousedown', function(e){
+  var n = hitTest(e);
+  if(n){
+    // 选中
+    if(activeNodeId===n.id){ activeNodeId=null; linksUnder=new Set(); }
+    else {
+      activeNodeId=n.id;
+      linksUnder = new Set();
+      // BFS 扩展 1 层邻接（配合 depthSel）
+      var depth = parseInt(document.getElementById('depthSel').value||'2',10);
+      var seen={}, q=[n.id]; seen[n.id]=0;
+      while(q.length){
+        var cur=q.shift();
+        if(seen[cur]>=depth) continue;
+        (neighborMap[cur]||[]).forEach(function(nb){
+          if(seen[nb]===undefined){ seen[nb]=seen[cur]+1; linksUnder.add(nb); q.push(nb); }
+        });
+      }
+      showNodeInfo(n);
+    }
+    // 绑定拖拽
+    var dragObj = { x:e.offsetXConvert||n.x, y:n.y };
+    // 简单拖拽：临时接管
+    dragPending = n;
+    e.preventDefault();
+    return;
+  } else {
+    activeNodeId=null; linksUnder=new Set(); document.getElementById('nodeinfo').style.display='none';
+  }
+});
+// hit 测试（世界坐标）
+function hitTest(e){
+  var rect = canvas.getBoundingClientRect();
+  var px=(e.clientX-rect.left), py=(e.clientY-rect.top);
+  var inv = zoomT? {x:(px-zoomT.x)/zoomT.k, y:(py-zoomT.y)/zoomT.k} : {x:px,y:py};
+  var best=null,bd=1e9;
+  vNodes.forEach(function(n){
+    if(n.x===undefined) return;
+    var r=nodeRadius(n)+4;
+    var dx=n.x-inv.x, dy=n.y-inv.y, d2=dx*dx+dy*dy;
+    if(d2<r*r){ var d=Math.sqrt(d2); if(d<bd){bd=d;best=n;} }
+  });
+  return best;
+}
+// 悬停
+canvas.addEventListener('mousemove', function(e){
+  var n=hitTest(e);
+  if(n && hoverNodeId!==n.id){ hoverNodeId=n.id; render(); }
+  else if(!n && hoverNodeId){ hoverNodeId=null; render(); }
+});
+canvas.addEventListener('mouseleave', function(){ hoverNodeId=null; render(); });
+
+// ---------- 搜索 ----------
+var search = document.getElementById('search');
+search.addEventListener('input', function(){
+  var q=search.value.trim().toLowerCase();
+  var ns, ls;
+  if(!q){ ns=nodes0; ls=links0; }
+  else {
+    var keep = new Set();
+    nodes0.forEach(function(n){
+      var hay=(n.label||'')+' '+(n.keywords||[]).join(' ');
+      if(hay.toLowerCase().includes(q)) keep.add(n.id);
+    });
+    ns = nodes0.filter(function(n){ return keep.has(n.id); });
+    ls = links0.filter(function(l){ return keep.has(l.source)&&keep.has(l.target); });
+  }
+  setView(ns,ls);
+  updateStat();
 });
 
-/* 控制 */
-document.getElementById('bExpand').onclick = function(){ jm.expand_all(); };
-document.getElementById('bCollapse').onclick = function(){ jm.expand_to_depth(1); };
-document.getElementById('bReset').onclick = function(){ jm.expand_to_depth(1); jm.view.reset(); };
+// ---------- 控制按钮 ----------
+document.getElementById('tbGlobal').addEventListener('click', function(){ setView(nodes0, links0); updateStat(); });
+document.getElementById('tbActive').addEventListener('click', function(){
+  if(!activeNodeId) return;
+  var depth=parseInt(document.getElementById('depthSel').value||'2',10);
+  var sub=new Set([activeNodeId]); var seen={}; var q=[activeNodeId]; seen[activeNodeId]=0;
+  while(q.length){ var cur=q.shift(); if(seen[cur]>=depth)continue; (neighborMap[cur]||[]).forEach(function(nb){ if(seen[nb]===undefined){seen[nb]=seen[cur]+1; sub.add(nb); q.push(nb);} }); }
+  var ns=nodes0.filter(function(n){return sub.has(n.id)});
+  var ls=links0.filter(function(l){return sub.has(l.source)&&sub.has(l.target)});
+  setView(ns,ls); updateStat();
+});
+document.getElementById('tbCenter').addEventListener('click', function(){
+  d3.select(canvas).transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
+});
+document.getElementById('nbtn').addEventListener('click', function(){
+  activeNodeId=null; linksUnder=new Set(); document.getElementById('nodeinfo').style.display='none'; render();
+});
 
-/* 图例与元信息 */
-var lg = document.getElementById('legend');
-for (var t in COLORS){
-  var n = NAMES[t] || t;
-  var s = document.createElement('span'); s.className = 'lg';
-  s.innerHTML = '<i style="background:'+COLORS[t]+'"></i>'+n; lg.appendChild(s);
+// ---------- 节点详情 ----------
+function showNodeInfo(n){
+  var info=document.getElementById('nodeinfo');
+  info.querySelector('.nh').textContent=(typeEmoji[n.type]||'')+' '+(typeName[n.type]||n.type)+' · '+(n.date||'');
+  var meta=[];
+  if(n.keywords&&n.keywords.length) meta.push('🏷️ '+n.keywords.slice(0,6).join('、'));
+  if(n.emotion!=null) meta.push('情绪 '+ (+n.emotion).toFixed(1));
+  if(n.recall!=null) meta.push('检索 '+n.recall+'次');
+  if(degree[n.id]!=null) meta.push('关联 '+degree[n.id]);
+  info.querySelector('.nm').textContent=meta.join(' · ');
+  info.querySelector('.nb').textContent=n.label||'';
+  info.style.display='block';
 }
-document.getElementById('meta').textContent = '共 '+PAYLOAD.total+' 条记忆 · 导出 '+(PAYLOAD.export_date||'')+' · 点节点展开，悬停叶看详情';
+
+// ---------- 统计 ----------
+function updateStat(){
+  var el=document.getElementById('statbar');
+  el.innerHTML='节点 '+vNodes.length+' · 连线 '+vLinks.length+' / 全 '+G.total+' 记忆 · '+G.link_count+' 关联';
+  document.getElementById('meta').textContent='共 '+G.total+' 条记忆 · 关联 '+G.link_count+' 条 · 导出于 '+G.export_date;
+}
+// 图例
+function buildLegend(){
+  var lg=document.getElementById('legend'); lg.innerHTML='';
+  Object.keys(typeColor).forEach(function(t){
+    var s=document.createElement('span'); s.className='lg';
+    s.innerHTML='<i style="background:'+typeColor[t]+'"></i>'+(typeEmoji[t]||'')+' '+(typeName[t]||t);
+    lg.appendChild(s);
+  });
+}
+
+// ---------- 启动 ----------
+resize();
+buildLegend();
+updateStat();
+setView(nodes0, links0);
 </script>
 </body>
 </html>

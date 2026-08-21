@@ -19,20 +19,15 @@ from pathlib import Path
 VIZ_DIR = Path(__file__).resolve().parent
 CORE = VIZ_DIR.parent / "memory_core.py"
 TPL = VIZ_DIR / "mindmap_template.html"
-JSMIND = VIZ_DIR / "jsmind"  # vendored jsMind 库
-JSMIND_JS = JSMIND / "jsmind.js"
-JSMIND_DRAG = JSMIND / "jsmind.draggable-node.js"
-JSMIND_CSS = JSMIND / "jsmind.css"
+D3_LIB = VIZ_DIR / "d3" / "d3.min.js"   # vendored d3（MPE graph-view 同款力导向图）
 LOCAL_BASE = Path.home() / ".local" / "share" / "忆时"
 DATA_DIR = os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or str(LOCAL_BASE / "data")
 
 
 def _inline_lib():
-    """读取 vendored jsMind 库内容，拼为可内嵌单文件字符串。"""
-    css = JSMIND_CSS.read_text(encoding="utf-8") if JSMIND_CSS.exists() else ""
-    js = JSMIND_JS.read_text(encoding="utf-8") if JSMIND_JS.exists() else ""
-    drag = JSMIND_DRAG.read_text(encoding="utf-8") if JSMIND_DRAG.exists() else ""
-    return css, js + "\n" + drag
+    """读取 vendored d3 库。"""
+    js = D3_LIB.read_text(encoding="utf-8") if D3_LIB.exists() else ""
+    return "", js
 
 # 主题聚类规则（与 viz.py 一致，顺序优先，首中即归）
 TOPICS = [
@@ -108,67 +103,30 @@ def build_mindmap(data, out):
             "c": summarize(m.get("content", "")),
         })
 
-    # 构建 jsMind 脑图（node_tree 格式，渐进式披露）
-    # 根: 忆时记忆 → 类型 → 主题 → 记忆叶子
-    # 初始仅展开类型一层，主题/记忆默认收起（点展开，省 token）
+    # 读取语义关系（relationships 集合），构建网状图
+    links = _load_relationships(records)
 
-    # 先按类型分组
-    type_groups = {}
+    # 节点：按记忆构建，id 为记忆 id
+    nodes = []
     for r in records:
-        t = r["type"]
-        type_groups.setdefault(t, []).append(r)
-
-    root_children = []
-    for t in ["decision", "task", "preference", "context", "skill", "emotion", "time"]:
-        mems = type_groups.get(t, [])
-        if not mems:
-            continue
-        # 按主题分组
-        topic_groups = {}
-        for m in mems:
-            top = m["topic"]
-            topic_groups.setdefault(top, []).append(m)
-
-        type_children = []
-        # 无主题（其他）的记忆直接为叶子
-        for top, ms in sorted(topic_groups.items(), key=lambda x: -len(x[1])):
-            if top == "其他" and len(ms) <= 5:
-                for m in ms:
-                    type_children.append(jsmind_leaf(m))
-            else:
-                topic_children = [jsmind_leaf(m) for m in ms]
-                topic_children.sort(key=lambda x: -x.get("_emotion_", 0))
-                type_children.append({
-                    "id": f"topic_{t}_{len(type_children)+1}",  # 用 type_children 当前长度 +1 作唯一序号
-                    "topic": f"{top} ({len(ms)})",
-                    "expanded": False,  # 主题默认收起（渐进）
-                    "data": {"background-color": TYPE_COLORS.get(t, "#999"), "float": "right"},
-                    "children": topic_children,
-                })
-
-        type_id = f"type_{t}"
-        root_children.append({
-            "id": type_id,
-            "topic": f"{TYPE_EMOJIS.get(t,'')} {TYPE_NAMES.get(t,t)} ({len(mems)})",
-            "expanded": False,  # 类型默认收起
-            "data": {"background-color": TYPE_COLORS.get(t, "#999")},
-            "children": type_children,
+        nodes.append({
+            "id": r["id"],
+            "label": r["c"],
+            "type": r["type"],
+            "type_name": TYPE_NAMES.get(r["type"], r["type"]),
+            "type_emoji": TYPE_EMOJIS.get(r["type"], ""),
+            "emotion": r["emotion"],
+            "date": r["date"],
+            "keywords": r["keywords"],
+            "recall": r["recall"],
+            "freq": r["freq"],
+            "color": TYPE_COLORS.get(r["type"], "#89b4fa"),
         })
 
-    mind = {
-        "meta": {"name": "忆时记忆脑图", "author": "fslong", "version": "0.3.0"},
-        "format": "node_tree",
-        "data": {
-            "id": "root",
-            "topic": f"忆时记忆 ({len(records)})",
-            "expanded": True,  # 根展开显示类型总览
-            "children": root_children,
-        },
-    }
-
     payload = {
-        "mind": mind,
+        "graph": {"nodes": nodes, "links": links},
         "total": len(records),
+        "link_count": len(links),
         "export_date": data.get("export_date", ""),
         "type_colors": TYPE_COLORS,
         "type_names": TYPE_NAMES,
@@ -179,33 +137,46 @@ def build_mindmap(data, out):
         raise RuntimeError(f"模板不存在: {TPL}")
     css, js = _inline_lib()
     tpl_html = TPL.read_text(encoding="utf-8")
-    # 占位符全部校验
-    for ph in ["/*__MINDMAP_DATA__*/", "/*__JSMIND_CSS__*/", "/*__JSMIND_JS__*/"]:
+    for ph in ["/*__D3_JS__*/", "__YISHI_GRAPH_DATA__"]:
         if ph not in tpl_html:
             raise RuntimeError(f"mindmap_template.html 缺少占位符 {ph}")
+    init_js = "var __YISHI_GRAPH__ = " + json.dumps(payload, ensure_ascii=False) + ";"
     html = tpl_html
-    html = html.replace("/*__JSMIND_CSS__*/", css)
-    html = html.replace("/*__JSMIND_JS__*/", js)
-    html = html.replace("/*__MINDMAP_DATA__*/", json.dumps(payload, ensure_ascii=False))
+    html = html.replace("/*__D3_JS__*/", js)
+    html = html.replace("__YISHI_GRAPH_DATA__", init_js)
     out.write_text(html, encoding="utf-8")
     return payload
 
-def jsmind_leaf(m):
-    """jsMind 叶子节点：topic=摘要，data 存详情（悬停显示）"""
-    topic = (m["c"] or "（空）").replace("<", "&lt;")
-    return {
-        "id": m["id"],
-        "topic": topic,
-        "data": {
-            "_emotion_": m["emotion"],
-            "_date_": m["date"],
-            "_keywords_": m["keywords"],
-            "_recall_": m["recall"],
-            "_type_name_": TYPE_NAMES.get(m["type"], m["type"]),
-            "_type_emoji_": TYPE_EMOJIS.get(m["type"], ""),
-            "_color_": TYPE_COLORS.get(m["type"], "#999"),
-        },
-    }
+
+def _load_relationships(records):
+    """读取 Chroma relationships 集合，返回 [{source,target,score}] 链接列表。
+
+    关系集合为 {document:'src->dst', metadata:{source,target,score}}。
+    仅保留两端都存在之记忆，并去重、按 score 降序。
+    """
+    ids = {r["id"] for r in records}
+    links = []
+    seen = set()
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("memcore", CORE)
+        memcore = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(memcore)
+        memcore.DATA_DIR = DATA_DIR
+        client = memcore.get_client()
+        rel_col = memcore.get_collection(client, "relationships")
+        batch = rel_col.get(include=["metadatas"])
+        metas = batch.get("metadatas") or []
+        for md in metas:
+            src = (md or {}).get("source")
+            tgt = (md or {}).get("target")
+            score = float((md or {}).get("score", 0.5) or 0.5)
+            if src in ids and tgt in ids and (src, tgt) not in seen:
+                seen.add((src, tgt))
+                links.append({"source": src, "target": tgt, "score": round(score, 3)})
+    except Exception as e:
+        print(f"  ⚠️ 读取关系失败（退化为无连线）: {e}")
+    return links
 
 def open_in_browser(path):
     if sys.platform == "darwin":
@@ -231,7 +202,7 @@ def main():
 
     payload = build_mindmap(data, Path(args.output))
     print(f"✅ 记忆脑图已生成: {args.output}")
-    print(f"   共 {payload['total']} 条记忆 · 类型 {len(payload['type_colors'])} 类")
+    print(f"   共 {payload['total']} 条记忆 · 关系 {payload['link_count']} 条 · 类型 {len(payload['type_colors'])} 类")
     if not args.no_open:
         open_in_browser(Path(args.output))
         print("   已在浏览器打开")
