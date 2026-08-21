@@ -1,7 +1,7 @@
 {
   "name": "@fslong/dsh-yishi",
-  "version": "0.2.4",
-  "description": "忆时记忆系统 DSH 插件（自包含）：同步忆时资源（docs/scripts）至 ~/.local/share/忆时，注入忆时指令 + 注册 memocap 技能。opencode 忆时技能作废后插件为唯一提供者。",
+  "version": "0.2.6",
+  "description": "为 AI Agent 提供类人记忆系统的 DSH 插件（自包含）：同步 docs/scripts 至 ~/.local/share/忆时，注入记忆指令 + 注册 memocap 技能。混合检索/遗忘曲线/时间胶囊/可视化。",
   "keywords": [
     "dsh",
     "deepseek-harness",
