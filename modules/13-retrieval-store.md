@@ -114,8 +114,9 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 
 **存储命令：**（内容为位置参数放最后，勿用 `--content`/`--tags`；关键字用 `--keywords`）
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字" [--scene 场景] [--activity-start 开始] [--activity-end 结束] [--force]
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字" [--title "≤10字标题"] [--scene 场景] [--activity-start 开始] [--activity-end 结束] [--force]
 ```
+**title 字段**：store 自动生成（`make_title` 取内容首段，≤10 字）供图谱节点标签。可不传，自动即够；特殊情形可 `--title` 覆盖。
 
 **类型**：task / decision / preference / emotion / time / context / skill
 **情绪**：0.0~1.0 数值（默认 0.5），数值越大越重要/强烈；旧词 high=0.8 / medium=0.5 / low=0.2 仍兼容（自动转数值）

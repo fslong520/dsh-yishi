@@ -446,18 +446,23 @@ def _merge_keywords(old_kw, new_kw):
     return ",".join(merged)
 
 
-def make_title(content, max_len=60):
-    """从内容首句生成简洁标题，供 csv/title 字段用。
+def make_title(content, max_len=None):
+    """从内容生成简洁标题（图谱节点用，≤10 字）。
 
-    规则：取第一句（遇到句号/问号/感叹号/换行），截断至 max_len 字符。
-    若超长则截断并加 '…'。若结果为空，回退到内容前 max_len 字符。
+    规则：取首个语义片段（按逗/句/冒/破折/括号切），去掉常见前缀，
+    截断至 max_len（默认 10）。供 title 字段（节点标签）。
     """
     import re
-    m = re.search(r"^(.+?[。！？\n.!?])", content.strip())
-    title = m.group(1).strip() if m else content.strip()
+    max_len = max_len or 10
+    s = (content or "").strip()
+    for pfx in ["【前因】", "【梳理】", "【结果】", "【对策】", "【01oj项目", "【项目全貌】", "【工作模式与偏好】"]:
+        if s.startswith(pfx):
+            s = s[len(pfx):]
+    m = re.split(r"[，。！？：；、—\-–\n\(（]", s)
+    title = m[0].strip() if m and m[0].strip() else s[:max_len]
     if len(title) > max_len:
-        title = title[:max_len-1] + "…"
-    return title or content[:max_len]
+        title = title[:max_len]
+    return title.strip() or (content or "")[:max_len]
 
 
 def cmd_store(args):
@@ -1307,7 +1312,7 @@ def main():
 
     p = sub.add_parser("store", help="存储新记忆")
     p.add_argument("content", help="记忆内容")
-    p.add_argument("--title", help="简洁标题（默认自动从首句生成）")
+    p.add_argument("--title", help="简洁标题（≤10 字，默认自动从内容首段生成）")
     p.add_argument("--type", choices=VALID_TYPES, help="记忆类型")
     p.add_argument("--emotion", help="情绪强度（0.0~1.0 数值，如 0.9；兼容旧词 high/medium/low）")
     p.add_argument("--keywords", help="关键字")

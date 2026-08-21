@@ -179,13 +179,24 @@ function render(){
     ctx.lineWidth = (activeNodeId&&n.id===activeNodeId)?2:1;
     ctx.strokeStyle = '#0b1220';
     ctx.stroke();
-    // 标签（缩放着 >0.35）
+    // 标签（缩放着 >0.35；每行 ≤5 字，超长换行）
     if(zoomT && zoomT.k>=0.35){
-      var tit = (n.title || n.label || n.id || '').slice(0,22);
-      ctx.font='bold '+(12*Math.min(1,zoomT.k*0.6))+'px "PingFang SC",sans-serif';
+      var tit = (n.title || n.label || n.id || '');
+      var fs = 12*Math.min(1,zoomT.k*0.6);
+      var ctxFont=('bold '+fs+'px "PingFang SC",sans-serif');
+      // 折成 ≤5 字的行
+      var lines=[], line='';
+      for(var ci=0; ci<tit.length; ci++){
+        line+=tit[ci];
+        if(line.length>=5){ lines.push(line); line=''; }
+      }
+      if(line) lines.push(line);
+      ctx.font=ctxFont;
       ctx.fillStyle=(activeNodeId&&n.id!==activeNodeId)?'rgba(205,214,244,0.5)':'#e6e9f5';
       ctx.textAlign='center';
-      ctx.fillText(tit, n.x, n.y-r-6);
+      lines.forEach(function(txt,li){
+        ctx.fillText(txt, n.x, n.y-r-6 - li*(fs+2));
+      });
     }
   });
 
@@ -203,7 +214,7 @@ var zoomBehavior = d3.zoom()
   .filter(zoomFilter)
   .on('zoom', function(event){ zoomT=event.transform; render(); });
 d3.select(canvas).call(zoomBehavior);
-// ---------- 节点交互（pointer 事件，含点击详情 + 拖拽）----------
+// ---------- 节点交互（pointer 事件：点击详情 + 拖拽，指标准确不丢）----------
 var _pnode=null, _px0=0, _py0=0, _psx=0, _psy=0, _dragging=false;
 function onPointerDown(e){
   if(e.button!==0) return;
@@ -222,10 +233,8 @@ function onPointerDown(e){
       });
     }
     showNodeInfo(n);
-    // 拖拽准备
+    // 拖拽准备（不 capture 指针、不 preventDefault → 光标不消失）
     _pnode=n; _psx=n.x; _psy=n.y; _px0=e.clientX; _py0=e.clientY; _dragging=false;
-    try { canvas.setPointerCapture(e.pointerId); } catch(err){ canvas.setPointerCapture(0); }
-    e.preventDefault();
   } else if(activeNodeId!==null){
     // 空白处点击：关闭详情
     activeNodeId=null; linksUnder=new Set();
@@ -236,27 +245,33 @@ function onPointerDown(e){
 function onPointerMove(e){
   if(!_pnode) return;
   var dx=e.clientX-_px0, dy=e.clientY-_py0;
-  if(!_dragging && (Math.abs(dx)>4||Math.abs(dy)>4)){ _dragging=true; simulation.alphaTarget(0.25).restart(); }
+  if(!_dragging && (Math.abs(dx)>4||Math.abs(dy)>4)){
+    _dragging=true; e.preventDefault();
+    canvas.style.cursor='default';
+    simulation.alphaTarget(0.25).restart();
+  }
   if(_dragging){
     var k=(zoomT&&zoomT.k)||1;
     _pnode.fx=_psx+dx/k; _pnode.fy=_psy+dy/k;
   }
 }
-function onPointerUp(e){
-  if(_pnode){ var n=_pnode; _pnode=null; if(n&&_dragging){ n.fx=null; n.fy=null; simulation.alphaTarget(0); } }
-  try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+function onPointerUp(){
+  if(_pnode){ var n=_pnode; _pnode=null; if(n&&_dragging){ n.fx=null; n.fy=null; simulation.alphaTarget(0); } _dragging=false; }
 }
 canvas.addEventListener('pointerdown', onPointerDown);
-canvas.addEventListener('pointermove', onPointerMove);
-canvas.addEventListener('pointerup', onPointerUp);
-canvas.addEventListener('pointercancel', onPointerUp);
-// 悬停：高亮 + 手型
+window.addEventListener('pointermove', onPointerMove);
+window.addEventListener('pointerup', onPointerUp);
+window.addEventListener('pointercancel', onPointerUp);
+// 悬停：高亮 + 手型（仅用标准指针样式，防系统缺图标）
 function truncate(s, n){ s=String(s||''); return s.length>n ? s.slice(0,n-1)+'…' : s; }
 canvas.addEventListener('mousemove', function(e){
   var n=hitTest(e);
   if(n && hoverNodeId!==n.id){ hoverNodeId=n.id; render(); }
   else if(!n && hoverNodeId){ hoverNodeId=null; render(); }
-  canvas.style.cursor = n ? 'pointer' : 'grab';
+  canvas.style.cursor = n ? 'pointer' : 'default';
+});
+document.addEventListener('mousedown', function(){
+  if(!_pnode) canvas.style.cursor='default';
 });
 canvas.addEventListener('mouseleave', function(){
   hoverNodeId=null;

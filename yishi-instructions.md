@@ -180,6 +180,7 @@ LOCAL_BASE=~/.local/share/忆时; YISHI=$LOCAL_BASE/scripts/memory_core.py; MEMO
 # Windows 用 %USERPROFILE%\.local\share\忆时 替 ~/.local/share/忆时，python 替 python3
 
 # store：内容为【位置参数放最后】（勿用 --content/--tags，此二参数不存在），关键字用 --keywords
+# 记忆自动生成 ≤10 字 title 供图谱节点标签，必要时可 --title "短标题" 覆盖
 python3 $YISHI store --type decision --keywords "k1,k2" --emotion 0.5 "记忆内容"
 
 # recall：检索/核实
