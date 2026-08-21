@@ -95,7 +95,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 - 有 → 提取 2-3 关键词，检索旧忆后再决定新增还是更新
 - 无 → 静默跳过，无需告知
 - 宁多勿少：反正本地存储，激进胜过保守
-- **去重自动执行**：store 已内置语义去重——与旧忆相似 >90% 自动合并（更新内容、频率+1），85%~90% 警告提示。想强制新增用 `--force`
+- **存时决策（2026-08-22 改）**：store 默认检索语义相似≥70% 候选簇，打印供 AI 综合决策。AI 判同主题碎片→`--merge-target <ID>` 有机合并；判不同主题→机械存储（或 `--force` 静默新增）。仅 >90% 确凿重复才自动并入。
 
 **存储质量门（存储前必过三问）：**
 ```
@@ -114,7 +114,12 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 
 **存储命令：**（内容为位置参数放最后，勿用 `--content`/`--tags`；关键字用 `--keywords`）
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字" [--title "≤10字标题"] [--scene 场景] [--activity-start 开始] [--activity-end 结束] [--force]
+# 机械存储（默认）：存前检索相似>70%候选并报告，由 AI 综合考虑决定
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字"
+# 屏蔽相似簇报告，强制新增
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --force
+# 有机合并：AI 判碎片重复时，并进指定记忆（含 keywords/频率，content 去重追加）
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --merge-target <目标ID>
 ```
 **title 字段**：store 自动生成（`make_title` 取内容首段，≤10 字）供图谱节点标签。可不传，自动即够；特殊情形可 `--title` 覆盖。
 
