@@ -111,7 +111,8 @@ RRF_K = 60.0                # RRF 融合常数（标准值 60）
 BM25_K1 = 1.5               # BM25 词频饱和参数
 BM25_B = 0.75               # BM25 文档长度归一参数
 BM25_SEM_CAP = 0.7          # BM25 归一化分封顶：关键词命中 ≠ 语义相关，防虚高顶榜
-RECALL_SIM_MIN = 0.70       # 检索过滤：综合匹配分（用户所见"匹配%"）低于此值不展示（2026-08-22 哥哥定）
+RECALL_SIM_MIN = 0.50       # 检索过滤：综合匹配分（用户所见"匹配%"）低于此值不展示（2026-08-22 哥哥定：>0.5 即看，取最相关3条）
+RECALL_LIMIT_MAX = 3        # 检索条数硬上限：最相关 3 条（2026-08-22 哥哥定，--limit 更大亦截断）
 MERGE_SIM_CLUSTER = 0.70    # 有机合并：语义相似度≥此值，存时检索候选供 AI 决策
 MERGE_SHOW_MAX = 3          # 存时打印候选最多条数（最相关 N 条）
 BM25_KEYWORD_WEIGHT = 2     # keywords 分词重复次数（权重×2）
@@ -606,7 +607,8 @@ def cmd_recall(args):
     mem_col = get_collection(client, "memories")
     rel_col = get_collection(client, "relationships")
     query = args.query
-    limit = args.limit or 10
+    # 最相关 3 条硬上限（哥哥 2026-08-22 定：'我只要3条'；--limit 传更大亦截断）
+    limit = min(args.limit or 3, RECALL_LIMIT_MAX)
     min_weight = args.min_weight or 0.0
     type_filter = args.type_filter or None
     now = _now()
