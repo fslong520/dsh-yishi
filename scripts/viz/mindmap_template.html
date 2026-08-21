@@ -194,8 +194,9 @@ function render(){
       ctx.font=ctxFont;
       ctx.fillStyle=(activeNodeId&&n.id!==activeNodeId)?'rgba(205,214,244,0.5)':'#e6e9f5';
       ctx.textAlign='center';
+      // 首行在最上（y 最小），后续行依次下移 → 行序不倒
       lines.forEach(function(txt,li){
-        ctx.fillText(txt, n.x, n.y-r-6 - li*(fs+2));
+        ctx.fillText(txt, n.x, n.y-r-6 + li*(fs+2));
       });
     }
   });
