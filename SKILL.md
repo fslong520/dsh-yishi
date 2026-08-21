@@ -164,8 +164,8 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 │   ├── memory_core.py          # 核心引擎 CLI
 │   └── viz/                    # 记忆可视化
 │       ├── viz.py              # 记忆全景生成器（导出→聚类→注入模板→打开）
-│       ├── mindmap.py          # 记忆脑图生成器（类型→主题→记忆径向树）
-│       ├── mindmap_template.html # 记忆脑图模板（径向树，/*__MINDMAP_DATA__*/ 占位）
+│       ├── mindmap.py          # 记忆图谱生成器（关系簇+孤立保留→~300节点网络图）
+│       ├── mindmap_template.html # 记忆图谱模板（D3力导向 Canvas，/*__D3_JS__*/ 与 __YISHI_GRAPH_DATA__ 占位）
 │       ├── template.html       # 记忆全景模板（孟菲斯风，/*__DATA__*/ 占位）
 │       ├── profile.py          # 人物画像助手（素材报告 + 正文注入）
 │       └── profile_template.html # 画像模板（<!--DATA-->/<!--CONTENT--> 占位）
