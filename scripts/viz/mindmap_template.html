@@ -90,7 +90,7 @@ nodes0.forEach(function(n){ degree[n.id]=(neighborMap[n.id]||new Set()).size; })
 var maxDegree = d3.max(nodes0, function(n){ return degree[n.id]; }) || 1;
 
 // 常量（MPE 同款）
-var Curm = 5, zxm = 14;
+var Curm = 6, zxm = 18;
 
 // ---------- 画布 ----------
 var canvas = document.getElementById('map');
@@ -131,10 +131,13 @@ function setView(ns, ls){ vNodes=ns; vLinks=ls;
 
 // ---------- 渲染 ----------
 function nodeRadius(n){
-  // 大小 ∝ 记忆容量(content_len) × 频次(freq)，叠加关系度
+  // 大小 ∝ 记忆容量(content_len) × 频次(freq) × 关系度；主题节点另加成员数权重
   var sizeNorm = 0;
-  if(n.content_len) sizeNorm += (Math.min(n.content_len, 2000) / 2000) * 0.55;  // 容量权重
-  if(n.freq) sizeNorm += (Math.min(n.freq, 10) / 10) * 0.30;                    // 频次权重
+  if(n.member_count){                          // 主题聚合节点：按成员数放大
+    sizeNorm += (Math.min(n.member_count, 200) / 200) * 0.85;
+  }
+  if(n.content_len) sizeNorm += (Math.min(n.content_len, 2000) / 2000) * 0.30;  // 容量权重
+  if(n.freq) sizeNorm += (Math.min(n.freq, 10) / 10) * 0.25;                    // 频次权重
   if(degree[n.id]) sizeNorm += (degree[n.id] / maxDegree) * 0.15;               // 关系度权重
   // 映射到 [Curm, zxm]
   return Curm + sizeNorm * (zxm - Curm);
@@ -176,13 +179,13 @@ function render(){
     ctx.lineWidth = (activeNodeId&&n.id===activeNodeId)?2:1;
     ctx.strokeStyle = '#0b1220';
     ctx.stroke();
-    // 标签（缩放着 >0.5）
-    if(zoomT && zoomT.k>=0.5){
-      var tit = (n.title || n.label || n.id || '').slice(0,20);
-      ctx.font=(10)+'px "PingFang SC",sans-serif';
-      ctx.fillStyle=(activeNodeId&&n.id!==activeNodeId)?'rgba(205,214,244,0.5)':'#cdd6f4';
+    // 标签（缩放着 >0.35）
+    if(zoomT && zoomT.k>=0.35){
+      var tit = (n.title || n.label || n.id || '').slice(0,22);
+      ctx.font='bold '+(12*Math.min(1,zoomT.k*0.6))+'px "PingFang SC",sans-serif';
+      ctx.fillStyle=(activeNodeId&&n.id!==activeNodeId)?'rgba(205,214,244,0.5)':'#e6e9f5';
       ctx.textAlign='center';
-      ctx.fillText(tit, n.x, n.y-r-4);
+      ctx.fillText(tit, n.x, n.y-r-6);
     }
   });
 
@@ -195,53 +198,64 @@ var zoomBehavior = d3.zoom()
   .scaleExtent([0.1, 10])
   .on('zoom', function(event){ zoomT=event.transform; render(); });
 d3.select(canvas).call(zoomBehavior);
-// 拖节点
-function dragStart(event){
-  if(event.active===0) simulation.alphaTarget(0.25).restart();
-  event.subject.fx = event.subject.x;
-  event.subject.fy = event.subject.y;
+// ---------- 节点拖拽（pointer 捕获，不丢失指针）----------
+var _dragNode=null, _dragStartX=0, _dragStartY=0, _dragSx=0, _dragSy=0, _isDrag=false;
+function startNodeDrag(n, e){
+  _dragNode=n; _dragSx=n.x; _dragSy=n.y;
+  _dragStartX=e.clientX; _dragStartY=e.clientY; _isDrag=false;
+  canvas.setPointerCapture(e.pointerId||0);
+  canvas.addEventListener('pointermove', onNodeDragMove);
+  canvas.addEventListener('pointerup', onNodeDragEnd);
+  canvas.addEventListener('pointercancel', onNodeDragEnd);
+  if(!e.__draggingPrevented){ e.preventDefault(); }
 }
-function dragMove(event){
-  event.subject.fx = event.x;
-  event.subject.fy = event.y;
+function onNodeDragMove(e){
+  if(!_dragNode) return;
+  var dx=e.clientX-_dragStartX, dy=e.clientY-_dragStartY;
+  if(!_isDrag && (Math.abs(dx)>4||Math.abs(dy)>4)){
+    _isDrag=true;   // 判定为拖拽
+    simulation.alphaTarget(0.25).restart();
+  }
+  if(_isDrag){
+    var k=(zoomT&&zoomT.k)||1;
+    _dragNode.fx=_dragSx+dx/k; _dragNode.fy=_dragSy+dy/k;
+  }
 }
-function dragEnd(event){
-  if(event.active===0) simulation.alphaTarget(0).alpha(0.2).restart();
-  event.subject.fx=null; event.subject.fy=null;
+function onNodeDragEnd(e){
+  canvas.removeEventListener('pointermove', onNodeDragMove);
+  canvas.removeEventListener('pointerup', onNodeDragEnd);
+  canvas.removeEventListener('pointercancel', onNodeDragEnd);
+  var n=_dragNode; _dragNode=null;
+  if(n && _isDrag){ n.fx=null; n.fy=null; simulation.alphaTarget(0); }
 }
-var nodeDrag = d3.drag()
-  .on('start', dragStart).on('drag', dragMove).on('end', dragEnd);
+document.addEventListener('mouseup', function(){ if(_dragNode) onNodeDragEnd({}); });
 
-// 把拖拽绑定到节点“虚拟对象”（在 mousedown 上接线）
-var dragPending=null;
+// ---------- 点击节点：选中 + 显示详情 ----------
 canvas.addEventListener('mousedown', function(e){
+  if(e.button!==0) return;
   var n = hitTest(e);
   if(n){
-    // 选中
-    if(activeNodeId===n.id){ activeNodeId=null; linksUnder=new Set(); }
-    else {
-      activeNodeId=n.id;
-      linksUnder = new Set();
-      // BFS 扩展 1 层邻接（配合 depthSel）
-      var depth = parseInt(document.getElementById('depthSel').value||'2',10);
-      var seen={}, q=[n.id]; seen[n.id]=0;
-      while(q.length){
-        var cur=q.shift();
-        if(seen[cur]>=depth) continue;
-        (neighborMap[cur]||[]).forEach(function(nb){
-          if(seen[nb]===undefined){ seen[nb]=seen[cur]+1; linksUnder.add(nb); q.push(nb); }
-        });
-      }
-      showNodeInfo(n);
+    activeNodeId=n.id;
+    linksUnder = new Set();
+    // BFS 扩展邻接（配合 depthSel）
+    var depth = parseInt(document.getElementById('depthSel').value||'2',10);
+    var seen={}, q=[n.id]; seen[n.id]=0;
+    while(q.length){
+      var cur=q.shift();
+      if(seen[cur]>=depth) continue;
+      (neighborMap[cur]||[]).forEach(function(nb){
+        if(seen[nb]===undefined){ seen[nb]=seen[cur]+1; linksUnder.add(nb); q.push(nb); }
+      });
     }
-    // 绑定拖拽
-    var dragObj = { x:e.offsetXConvert||n.x, y:n.y };
-    // 简单拖拽：临时接管
-    dragPending = n;
-    e.preventDefault();
-    return;
+    showNodeInfo(n);
+    startNodeDrag(n, e);
   } else {
-    activeNodeId=null; linksUnder=new Set(); document.getElementById('nodeinfo').style.display='none';
+    // 空白处：仅点击时关闭详情，拖动由 zoom 处理
+    if(activeNodeId!==null){
+      activeNodeId=null; linksUnder=new Set();
+      document.getElementById('nodeinfo').style.display='none';
+      render();
+    }
   }
 });
 // hit 测试（世界坐标）
@@ -321,13 +335,18 @@ function showNodeInfo(n){
   if(n.recall!=null) meta.push('检索 '+n.recall+'次');
   if(degree[n.id]!=null) meta.push('关联 '+degree[n.id]);
   if(n.date) meta.push(n.date);
+  if(n.member_count) meta.push('共'+n.member_count+'条');
   info.querySelector('.nm').textContent=meta.join(' · ');
-  var body = n.full || n.label || '';
-  // 簇节点：附成分记忆清单
+  var body = '';
+  // 主题节点：列出全部成员
   if(n.members && n.members.length){
-    body += '\n\n──────── 合并成分 ────────\n' + n.members.map(function(m,i){
-      return (i+1)+'. '+(m.title||'')+'　['+(m.date||'')+']';
+    body = n.members.map(function(m,i){
+      var emoji = (typeEmoji[m.type]||'') + ' ';
+      var kw = (m.keywords||[]).slice(0,3).join(',');
+      return (i+1)+'. '+emoji+(m.title||'')+(kw?'  🏷️'+kw:'');
     }).join('\n');
+  } else {
+    body = n.full || n.label || '';
   }
   info.querySelector('.nb').textContent = body;
   info.querySelector('.nb').scrollTop = 0;
