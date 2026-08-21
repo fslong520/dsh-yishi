@@ -543,7 +543,8 @@ def cmd_store(args):
         print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
         return new_mid
 
-    # 有候选 → 完整打印供 AI 读取判断（内容全量，非片段；最多 3 条最相关）
+    # 有候选 → 打印候选提示（内容全量，最多 3 条最相关）供 AI 决策参考
+    # 脚本不决策：无论候选与否皆照常存储；合并与否由 AI 按 prompt 用 --merge-ids/--force 安排
     if cluster and not getattr(args, "force", False):
         cluster.sort(key=lambda x: -x[1])
         shown = cluster[:MERGE_SHOW_MAX]
@@ -558,8 +559,8 @@ def cmd_store(args):
                 oc, ok, od = "", "", ""
             print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
             print(f"  {oc}")
-        print(f"\n  → 决策：能综合合并 → store \"综合合并版\" --merge-ids \"{shown[0][0]},...\"（删旧存新）")
-        print(f"  → 不能合并 → 已机械存储兜底（或 --force 静默）")
+        print(f"\n  → 参考：能综合合并 → store \"综合合并版\" --merge-ids \"{shown[0][0]},...\"（删旧存新）")
+        print(f"  → 不能合并 → 本次机械存储已执行（决策在 AI，脚本不代决）")
 
     mem_id = str(uuid.uuid4())
     mem_col.add(documents=[args.content], metadatas=[metadata], ids=[mem_id])
