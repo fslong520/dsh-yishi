@@ -151,7 +151,7 @@ python %USERPROFILE%\.local\share\忆时\scripts\models-install.py
 ### 辅助操作
 
 - **决策前置**：做决策或提问前，先 recall 查询既有记忆。
-- **可视化回顾**：用户想看记忆全貌（"看看记了啥""可视化"），运行 `python3 $VIZ`（须设 MEMO_DIR），默认生成 `~/Desktop/忆时记忆全景.html` 并打开。详情见 modules/12-viz-profile.md。
+- **可视化回顾**：用户想看记忆全貌（"看看记了啥""可视化"），运行 `python3 $VIZ`（须设 MEMO_DIR），默认生成 `~/Desktop/忆时记忆全景.html` 并打开。专题记忆之书：`python3 $VIZ --filter "关键字，逗号分隔"`（仅按 keywords 字段筛，封面显关键字标签）。详情见 modules/12-viz-profile.md。
 - **记忆脑图**：用户想看记忆全貌之脑图（"记忆脑图""脑图""画个脑图"），运行 `python3 $LOCAL_BASE/scripts/viz/mindmap.py`（须设 MEMO_DIR），默认生成 `~/Desktop/忆时记忆脑图.html` 并打开——按类型→主题→记忆径向树展示，点击展开/收起。
 - **人物画像**：用户问"我是怎样的人""人物画像"，**先问署名**（默认 fslong），运行 `python3 $VIZ/profile.py` 取素材，按 modules/12-viz-profile.md「画像」之正文结构撰写画像（页脚 s-foot 署名），注入生成 `~/Desktop/哥哥人物画像.html` 并打开，产出后存入记忆；画像自动封存为时间胶囊（3 个月后解锁，`--no-capsule` 可关）。
 - **对话结束**：强制归档，回顾要点，判断是否存入记忆。流程见 modules/09-archiving.md。

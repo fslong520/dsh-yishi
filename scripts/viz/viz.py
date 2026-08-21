@@ -65,8 +65,24 @@ def export_json(tmp):
     if r.returncode != 0:
         raise RuntimeError(f"导出失败: {r.stderr.strip() or r.stdout.strip()}")
 
-def build(data, out):
-    memories = data.get("memories", [])
+def _filter_memories(memories, filter_kw, topic=None):
+    """过滤记忆生成专题之书：filter_kw 只搜 keywords 字段（逗号分隔，任一命中）；
+    topic 按主题名过滤（classify 所得，如"系统运维"）。均可叠用，留空不过滤。"""
+    keys = [k.strip().lower() for k in (filter_kw or "").split(",") if k.strip()]
+    out = []
+    for m in memories:
+        md = m.get("metadata", {})
+        kw = (md.get("keywords", "") or "").lower()
+        if topic and classify(md.get("keywords", "") or "") != topic:
+            continue
+        if keys and not any(k in kw for k in keys):
+            continue
+        out.append(m)
+    return out
+
+
+def build(data, out, filter_kw=None, topic=None):
+    memories = _filter_memories(data.get("memories", []), filter_kw, topic)
     records = []
     for m in memories:
         md = m.get("metadata", {})
@@ -107,6 +123,8 @@ def build(data, out):
     payload = {
         "total": len(records),
         "export_date": data.get("export_date", ""),
+        "filter": filter_kw or "",
+        "filterTags": [k.strip() for k in (filter_kw or "").split(",") if k.strip()] + ([topic] if topic else []),
         "type_dist": type_dist, "emo_dist": emo_dist,
         "month_dist": dict(sorted(month_dist.items())),
         "topic_count": topic_count,
@@ -137,6 +155,10 @@ def main():
     ap.add_argument("-o", "--output", default=str(Path.home() / "Desktop" / "忆时记忆全景.html"))
     ap.add_argument("--no-open", action="store_true", help="生成后不自动打开")
     ap.add_argument("--data", default=None, help="复用已有导出JSON文件")
+    ap.add_argument("--filter", "--f", default=None,
+                    help="按逗号分隔关键词过滤（仅搜 keywords 字段，命中任一即保留）")
+    ap.add_argument("--topic", default=None,
+                    help="按主题名过滤（如 系统运维/GESP考级/纸焰小说），生成专题记忆之书")
     args = ap.parse_args()
 
     if args.data:
@@ -146,8 +168,9 @@ def main():
         export_json(tmp)
         data = json.load(open(tmp, encoding="utf-8"))
 
-    payload = build(data, Path(args.output))
-    print(f"✅ 记忆全景已生成: {args.output}")
+    payload = build(data, Path(args.output), filter_kw=args.filter, topic=args.topic)
+    tag = f"（主题: {args.topic}）" if args.topic else (f"（筛选: {args.filter}）" if args.filter else "")
+    print(f"✅ 记忆之书已生成: {args.output} {tag}")
     print(f"   共 {payload['total']} 条记忆 · 主题 {len(payload['topic_count'])} 类")
     print(f"   " + " · ".join(f"{k} {v}" for k, v in sorted(payload["topic_count"].items(), key=lambda x: -x[1])))
     if not args.no_open:

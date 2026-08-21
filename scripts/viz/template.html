@@ -63,6 +63,8 @@
   .cover .cstat small{display:block;font-size:0.68rem;font-weight:800;letter-spacing:0.14em;opacity:.85}
   .cover .chint{position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);font-size:0.76rem;color:#1a1a1a;font-weight:800;letter-spacing:0.08em;background:#fff;border:2px solid #1a1a1a;border-radius:99px;padding:0.4rem 1.2rem;box-shadow:2px 2px 0 0 rgba(0,0,0,.55);z-index:3;white-space:nowrap}
   .cover .cv-owner{font-size:1.35rem;font-weight:900;letter-spacing:0.32em;color:var(--orange);background:#1a1a1a;border:var(--border);border-radius:0.6rem;padding:0.3rem 1.3rem;transform:rotate(-2deg);box-shadow:3px 3px 0 0 rgba(0,0,0,.45);margin-top:0.7rem}
+  .cover .cv-tags{display:flex;flex-wrap:wrap;gap:0.4rem;justify-content:center;margin-top:0.4rem;max-width:90%;margin-left:auto;margin-right:auto}
+  .cover .cv-tag{font-size:0.6rem;font-weight:800;color:#1a1a1a;background:#f5efe6;border:1.5px solid #1a1a1a;border-radius:99px;padding:0.15rem 0.6rem;letter-spacing:0.03em;white-space:nowrap;box-shadow:1px 1px 0 0 rgba(0,0,0,.2)}
   /* 封底 */
   .backcover{justify-content:center;align-items:center;text-align:center}
   .backcover .bt{font-size:1.6rem;font-weight:900}
@@ -150,6 +152,7 @@ function pagesOf(){
         <div class="cstat"><b>${Object.keys(MEMORIES.type_dist).length}</b><small>种类型</small></div>
         <div class="cstat"><b>${Object.keys(MEMORIES.month_dist).length}</b><small>个月</small></div>
       </div>
+      ${MEMORIES.filterTags?`<div class="cv-tags">${MEMORIES.filterTags.map(function(t){return '<span class="cv-tag">'+t+'</span>'}).join('')}</div>`:''}
       <div class="cv-owner">fslong 藏</div>
     </div>
     <div class="chint">按 → 键 · 或点击「下一页」开始翻阅</div>
