@@ -88,6 +88,7 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 导入:      python3 $PY import-file file.md --format markdown
 导出:      python3 $PY export --format timeline --output output.md
 可视化:    python3 ~/.local/share/忆时/scripts/viz/viz.py
+记忆脑图:  python3 ~/.local/share/忆时/scripts/viz/mindmap.py
 统计:      python3 $PY stats
 遗忘:      python3 $PY forget --before "2025-01-01" --auto
 恢复:      python3 $PY recover
@@ -108,6 +109,7 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 | `/忆时 统计` | stats |
 | `/忆时 导出` | export |
 | `/忆时 可视化 [--out 路径]` | 记忆全景 HTML |
+| `/忆时 脑图 [--out 路径]` | 记忆脑图 |
 | `/忆时 画像` | 人物画像 |
 | `/忆时 恢复` | recover |
 | `/忆时 胶囊 封存/列表/开封` | capsule lock/list/unlock |
@@ -162,6 +164,8 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 │   ├── memory_core.py          # 核心引擎 CLI
 │   └── viz/                    # 记忆可视化
 │       ├── viz.py              # 记忆全景生成器（导出→聚类→注入模板→打开）
+│       ├── mindmap.py          # 记忆脑图生成器（类型→主题→记忆径向树）
+│       ├── mindmap_template.html # 记忆脑图模板（径向树，/*__MINDMAP_DATA__*/ 占位）
 │       ├── template.html       # 记忆全景模板（孟菲斯风，/*__DATA__*/ 占位）
 │       ├── profile.py          # 人物画像助手（素材报告 + 正文注入）
 │       └── profile_template.html # 画像模板（<!--DATA-->/<!--CONTENT--> 占位）

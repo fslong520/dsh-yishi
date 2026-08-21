@@ -118,6 +118,13 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/vi
 ```
 参数、产出、主题聚类、回复风格——详见 modules/12-viz-profile.md「可视化」。
 
+## 脑图（mindmap）
+
+```bash
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/mindmap.py
+```
+产出交互式记忆脑图（类型→主题→记忆径向树）。详见 modules/12-viz-profile.md「记忆脑图」。
+
 ## 画像（profile）
 
 两步流程、素材报告、正文撰写结构、署名规范、自动封存——详见 modules/12-viz-profile.md「画像」。
@@ -160,7 +167,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI capsule list
 
 | 场景 | 处理 | 回复 |
 |------|------|------|
-| 不识别的动作 | 告知支持的动作列表 | `"不识。可用：记住、查找、忘记、统计、导出、可视化、恢复、胶囊、梳理。"` |
+| 不识别的动作 | 告知支持的动作列表 | `"不识。可用：记住、查找、忘记、统计、导出、可视化、脑图、恢复、胶囊、梳理。"` |
 | 命令执行失败 | 读取错误信息重试一次 | `"不顺。再试？"` + 错误摘要 |
 | 多次失败 | 放弃，告知用户 | `"试之再三，不成。待吾修复。"` |
 
