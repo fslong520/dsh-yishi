@@ -111,7 +111,8 @@ RRF_K = 60.0                # RRF 融合常数（标准值 60）
 BM25_K1 = 1.5               # BM25 词频饱和参数
 BM25_B = 0.75               # BM25 文档长度归一参数
 BM25_SEM_CAP = 0.7          # BM25 归一化分封顶：关键词命中 ≠ 语义相关，防虚高顶榜
-MERGE_SIM_CLUSTER = 0.70    # 有机合并：语义相似度≥此值，存时自动并入簇（矛盾以后来者为准）
+MERGE_SIM_CLUSTER = 0.70    # 有机合并：语义相似度≥此值，存时检索候选供 AI 决策
+MERGE_SHOW_MAX = 3          # 存时打印候选最多条数（最相关 N 条）
 BM25_KEYWORD_WEIGHT = 2     # keywords 分词重复次数（权重×2）
 _STOP_WORDS = frozenset(
     "的了是在我有和就都而及与或一个不也这那你们我们他们她他它它们被把让从到对向为以于之乎者也"
@@ -540,11 +541,12 @@ def cmd_store(args):
         print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
         return new_mid
 
-    # 有候选 → 完整打印供 AI 读取判断（内容全量，非片段）
+    # 有候选 → 完整打印供 AI 读取判断（内容全量，非片段；最多 3 条最相关）
     if cluster and not getattr(args, "force", False):
         cluster.sort(key=lambda x: -x[1])
-        print(f"🔎 发现语义相似候选 {len(cluster)} 条（≥{MERGE_SIM_CLUSTER:.0%}），请 AI 读取判断：")
-        for mid, sem in cluster[:8]:
+        shown = cluster[:MERGE_SHOW_MAX]
+        print(f"🔎 发现语义相似候选 {len(cluster)} 条（≥{MERGE_SIM_CLUSTER:.0%}），请 AI 读取判断（最相关 {len(shown)} 条）：")
+        for mid, sem in shown:
             try:
                 og = mem_col.get(ids=[mid])
                 oc = og["documents"][0] if og["documents"] else ""
@@ -554,7 +556,7 @@ def cmd_store(args):
                 oc, ok, od = "", "", ""
             print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
             print(f"  {oc}")
-        print(f"\n  → 决策：能综合合并 → store \"综合合并版\" --merge-ids \"{cluster[0][0]},...\"（删旧存新）")
+        print(f"\n  → 决策：能综合合并 → store \"综合合并版\" --merge-ids \"{shown[0][0]},...\"（删旧存新）")
         print(f"  → 不能合并 → 已机械存储兜底（或 --force 静默）")
 
     mem_id = str(uuid.uuid4())
