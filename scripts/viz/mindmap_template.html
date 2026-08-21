@@ -5,244 +5,150 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>忆时 · 记忆脑图</title>
 <style>
-:root{
-  --bg:#0f172a; --bg2:#1e293b; --border:#334155; --text:#e2e8f0; --muted:#94a3b8;
-  --accent:#2EC4B6; --accent2:#9B5DE5;
-}
+:root{--bg:#0b1220;--panel:rgba(30,41,59,.92);--border:#2a3a52;--text:#e8eef7;--muted:#8aa0bd;--glow:#2EC4B6}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%}
-body{
-  font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
-  background:radial-gradient(1200px 800px at 20% -10%,#1e3a5f 0%,transparent 60%),
-             radial-gradient(1000px 700px at 110% 110%,#3b1e5f 0%,transparent 55%),
-             var(--bg);
-  color:var(--text); overflow:hidden;
-}
-#app{height:100vh;display:flex;flex-direction:column}
-/* 顶栏 */
-#hdr{
-  display:flex;align-items:center;gap:14px;padding:14px 22px;
-  background:rgba(15,23,42,.85);border-bottom:1px solid var(--border);
-  backdrop-filter:blur(10px);flex:0 0 auto;
-}
-.logo{font-size:22px}
-#hdr h1{
-  font-size:17px;font-weight:700;letter-spacing:.5px;
-  background:linear-gradient(90deg,var(--accent),var(--accent2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-}
+html,body{height:100%;overflow:hidden}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+#app{height:100vh;position:relative}
+#bg{position:fixed;inset:0;z-index:0;opacity:.5;pointer-events:none;
+  background:radial-gradient(1px 1px at 20% 30%,#fff .8px,transparent 0),
+  radial-gradient(1px 1px at 70% 20%,#fff .6px,transparent 0),
+  radial-gradient(900px 600px at 80% -10%,#16315c 0,transparent 60%),
+  radial-gradient(700px 500px at 10% 110%,#2a1747 0,transparent 55%)}
+#hdr{position:relative;z-index:20;display:flex;align-items:center;gap:14px;padding:14px 22px;
+  background:linear-gradient(180deg,rgba(15,23,42,.95),rgba(15,23,42,.6));border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
+#hdr h1{font-size:18px;font-weight:800;letter-spacing:.5px;background:linear-gradient(90deg,var(--glow),#9B5DE5,#F72585);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 #hdr .meta{font-size:12px;color:var(--muted)}
-#legend{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-.lg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text);background:rgba(51,65,85,.4);padding:3px 9px;border-radius:20px;border:1px solid var(--border)}
-.lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
-/* 主体 */
-#main{flex:1 1 auto;overflow:auto;padding:26px 30px 40px;position:relative}
-#guide{
-  position:sticky;top:0;z-index:5;font-size:11px;color:var(--muted);
-  background:linear-gradient(180deg,var(--bg) 60%,transparent);
-  padding:0 0 8px;
-}
-/* 树 */
-ul.tree,ul.tree ul{list-style:none;padding-left:34px;margin:0}
-ul.tree>li{margin:2px 0}
-li.t-n{position:relative}
-/* 引导线（左） */
-li.t-n::before{
-  content:"";position:absolute;left:-20px;top:-12px;bottom:0;width:22px;
-  border-left:1.5px solid var(--border);border-bottom:1.5px solid var(--border);
-  border-radius:0 0 0 6px;
-}
-li.t-n:last-child::after{
-  content:"";position:absolute;left:-20px;top:-12px;bottom:50%;
-  border-left:1.5px solid var(--border);
-}
-/* 节点行 */
-.nrow{
-  display:flex;align-items:center;gap:9px;min-height:32px;
-  padding:4px 12px 4px 8px;border-radius:10px;cursor:pointer;
-  transition:background .15s,transform .1s;position:relative;
-}
-.nrow:hover{background:rgba(51,65,85,.5);transform:translateX(2px)}
-.nrow.collapsed .caret{transform:rotate(-90deg)}
-.caret{
-  width:18px;height:18px;flex:0 0 18px;display:flex;align-items:center;justify-content:center;
-  color:var(--muted);font-size:12px;transition:transform .2s;user-select:none;
-}
-.caret.hidden{visibility:hidden}
-.ndot{width:13px;height:13px;border-radius:50%;flex:0 0 13px;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
-.ndot.root{width:20px;height:20px;background:conic-gradient(var(--accent),var(--accent2),var(--accent));box-shadow:0 0 14px rgba(46,196,182,.4)}
-.nname{font-size:14px;font-weight:500;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-li.type>.nrow .nname{font-size:14px;font-weight:600}
-li.topic>.nrow .nname{font-size:13px;color:#fbbf24;font-weight:500}
-li.mem>.nrow .nname{font-size:12px;color:var(--text);font-weight:400}
-.ncount{
-  font-size:11px;color:var(--muted);background:rgba(51,65,85,.45);
-  padding:1px 8px;border-radius:12px;flex:0 0 auto;min-width:24px;text-align:center;
-}
-.ntype{font-size:10px;color:var(--muted);flex:0 0 auto;margin-right:2px}
-/* 摘要卡（悬停显示全文提示） */
-.mem .nname .sum{color:var(--muted);font-size:11px;margin-left:8px}
-/* 记忆叶子行 */
-li.mem>.nrow{
-  min-height:26px;padding:2px 12px 2px 8px;border-left:3px solid transparent;
-}
-li.mem>.nrow:hover{border-left-color:var(--accent)}
-/* 底部说明 */
-#foot{flex:0 0 auto;padding:10px 22px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);background:rgba(15,23,42,.6)}
-#foot b{color:var(--accent)}
-/* toast */
-#toast{
-  position:fixed;left:50%;bottom:70px;transform:translateX(-50%) translateY(20px);
-  background:rgba(30,41,59,.98);border:1px solid var(--accent);color:var(--text);
-  padding:10px 18px;border-radius:10px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);
-  opacity:0;transition:all .3s;z-index:50;pointer-events:none;max-width:70%;text-align:center;
-}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#legend{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(42,58,82,.5);border:1px solid var(--border)}
+.lg i{width:9px;height:9px;border-radius:50%}
+#canvas{position:absolute;inset:0;z-index:1;cursor:grab}
+#canvas.drag{cursor:grabbing}
+.mm-link{stroke-width:2;stroke-opacity:.6;fill:none}
+.mm-node{cursor:pointer;transition:opacity .15s}
+.mm-node:hover{opacity:.85;filter:drop-shadow(0 0 6px rgba(46,196,182,.5))}
+.mm-circle{stroke:#0b1220;stroke-width:2.5}
+.mm-text{fill:var(--text);stroke:#0b1220;stroke-width:2.8;paint-order:stroke;font-family:inherit;user-select:none;pointer-events:none}
+.mm-text.root{font-size:18px;font-weight:800;letter-spacing:1px}
+.mm-text.type{font-size:15px;font-weight:700}
+.mm-text.topic{font-size:12px;fill:#ffd166;font-weight:600}
+.mm-text.leaf{font-size:10px;fill:var(--muted)}
+.mm-count{font-size:10px;fill:#fff;stroke:#0b1220;stroke-width:2;paint-order:stroke;pointer-events:none}
+.mm-badge{stroke:#0b1220;stroke-width:1.5}
+#ctl{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;display:flex;gap:8px;
+  background:var(--panel);border:1px solid var(--border);padding:7px 10px;border-radius:14px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.bt{background:transparent;border:1px solid var(--border);color:var(--text);padding:5px 13px;border-radius:10px;cursor:pointer;font-size:12px;transition:all .15s;font-family:inherit}
+.bt:hover{background:#2a3a52;border-color:var(--glow)}
+#tip{position:absolute;z-index:30;pointer-events:none;display:none;max-width:380px;background:var(--panel);border:1px solid var(--glow);border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.55;box-shadow:0 10px 34px rgba(0,0,0,.5)}
+#tip .th{font-weight:700;font-size:13px;margin-bottom:3px;display:flex;gap:6px;align-items:center}
+#tip .tm{font-size:11px;color:var(--muted);margin-bottom:4px}
+#tip .tb{color:#cbd5e1}
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="hdr">
-    <span class="logo">🎋</span>
-    <h1>忆时 · 记忆脑图</h1>
-    <span class="meta" id="meta"></span>
-    <div id="legend"></div>
-  </div>
-  <div id="main">
-    <div id="guide">▸ 点击节点展开/收起，逐层下钻。先览概貌，再探细节——全文请至尾部提示用「/忆时 查找」检索。</div>
-    <div id="tree"></div>
-  </div>
-  <div id="foot"></div>
-  <div id="toast"></div>
+<div id="bg"></div>
+<div id="hdr"><h1>🎋 忆时 · 记忆脑图</h1><span class="meta" id="meta"></span><div id="legend"></div></div>
+<svg id="canvas" viewBox="0 0 1000 700"><g id="rootG"></g></svg>
+<div id="ctl">
+  <button class="bt" id="bExpand">全部展开</button>
+  <button class="bt" id="bReset">归位</button>
+  <button class="bt" id="bCollapse">收起</button>
 </div>
+<div id="tip"><div class="th"></div><div class="tm"></div><div class="tb"></div></div>
 <script>
-var DATA = /*__MINDMAP_DATA__*/;
-var COLORS = (DATA && DATA.type_colors) || {};
-var NAMES  = (DATA && DATA.type_names)  || {};
-var EMOJIS = (DATA && DATA.type_emojis) || {};
-
-// 一次性构建树 DOM
-var treeEl = document.getElementById('tree');
-
-function buildTree(node, collapsedAll) {
-  var el = document.createElement('li');
-  el.className = 't-n ' + (node.type || '');
-  var hasKids = node.children && node.children.length > 0;
-  var collapsed = collapsedAll ? true : (node._collapsed === true);
-
-  var row = document.createElement('div');
-  row.className = 'nrow' + (collapsed ? ' collapsed' : '');
-
-  // caret
-  var caret = document.createElement('span');
-  caret.className = 'caret' + (hasKids ? '' : ' hidden');
-  caret.innerHTML = '▾';
-  row.appendChild(caret);
-
-  // dot
-  var dot = document.createElement('span');
-  dot.className = 'ndot' + (node.type === 'root' ? ' root' : '');
-  dot.style.background = node.color || '#555';
-  row.appendChild(dot);
-
-  // name
-  var name = document.createElement('span');
-  name.className = 'nname';
-  var txt = node.name || '';
-  if (node.type === 'memory') {
-    name.innerHTML = '<span class="sum">' + esc(txt) + '</span>';
-  } else {
-    name.textContent = txt;
+var DATA=/*__MINDMAP_DATA__*/;
+var COLORS=(DATA&&DATA.type_colors)||{},NAMES=(DATA&&DATA.type_names)||{};
+var S='http://www.w3.org/2000/svg';
+var rootG=document.getElementById('rootG'),canvas=document.getElementById('canvas'),tip=document.getElementById('tip');
+var tree=DATA.tree,W=1000,H=700,CX=W/2,CY=H/2;
+function isOpen(n){return n.open===true}
+function leafCount(n){if(!n.children||!n.children.length)return 1;var c=0,i;for(i=0;i<n.children.length;i++)c+=leafCount(n.children[i]);return c||1}
+function depthR(d){return d<=0?34:(d===1?150:(d===2?245:320))}
+function nsize(n){if(n.type==='root')return 40;if(n.type==='type')return 17;if(n.type==='topic')return 10;return 5.5}
+function drawLink(x1,y1,x2,y2,col){
+  var p=document.createElementNS(S,'path');p.setAttribute('class','mm-link');
+  var mx=(x1+x2)/2,my=(y1+y2)/2;
+  p.setAttribute('d','M'+x1.toFixed(1)+' '+y1.toFixed(1)+' Q'+mx.toFixed(1)+' '+my.toFixed(1)+' '+x2.toFixed(1)+' '+y2.toFixed(1));
+  p.setAttribute('stroke',col);rootG.insertBefore(p,rootG.firstChild);
+}
+function drawNode(n,kind){
+  var g=document.createElementNS(S,'g');g.setAttribute('class','mm-node');
+  var cx=n._x,cy=n._y,sz=nsize(n),col=n.color||'#6b7a92';
+  if(kind==='root')col='url(#gRoot)';
+  var c=document.createElementNS(S,'circle');c.setAttribute('class','mm-circle');
+  c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',sz);c.setAttribute('fill',col);
+  if(kind==='leaf')c.setAttribute('fill-opacity','.72');
+  g.appendChild(c);
+  if(kind!=='leaf'&&n.children&&n.children.length){
+    var open=isOpen(n),bsz=Math.min(9,sz*0.5+2);
+    var b=document.createElementNS(S,'circle');b.setAttribute('class','mm-badge');
+    b.setAttribute('cx',cx);b.setAttribute('cy',cy+(sz+bsz+4));b.setAttribute('r',bsz);
+    b.setAttribute('fill',open?'#2f3b52':'#18b897');g.appendChild(b);
+    var bt=document.createElementNS(S,'text');bt.setAttribute('class','mm-count');
+    bt.setAttribute('x',cx);bt.setAttribute('y',cy+(sz+bsz+8));bt.setAttribute('text-anchor','middle');
+    bt.setAttribute('font-size','10');bt.textContent=open?'−':'+';g.appendChild(bt);
+    var ntm=document.createElementNS(S,'text');ntm.setAttribute('class','mm-count');
+    ntm.setAttribute('x',cx);ntm.setAttribute('y',cy-sz-5);ntm.setAttribute('text-anchor','middle');
+    ntm.textContent=(n.count||leafCount(n));g.appendChild(ntm);
   }
-  row.appendChild(name);
-
-  // count
-  if (hasKids) {
-    var cnt = document.createElement('span');
-    cnt.className = 'ncount';
-    cnt.textContent = node.count || '';
-    row.appendChild(cnt);
+  var t=document.createElementNS(S,'text');t.setAttribute('class','mm-text '+kind);
+  t.setAttribute('x',cx+sz+6);t.setAttribute('y',cy+4);
+  var name=n.name||'';if(name.length>28&&kind!=='root')name=name.slice(0,26)+'…';
+  t.textContent=name;g.appendChild(t);
+  g.addEventListener('click',function(ev){ev.stopPropagation();if(n.children&&n.children.length){n.open=!isOpen(n);render()}});
+  if(n.type==='leaf'){
+    g.addEventListener('mouseenter',function(ev){showTip(n,ev)});
+    g.addEventListener('mousemove',function(ev){moveTip(ev)});
+    g.addEventListener('mouseleave',function(){tip.style.display='none'});
   }
-
-  el.appendChild(row);
-
-  // children
-  if (hasKids) {
-    var ul = document.createElement('ul');
-    if (collapsed) ul.style.display = 'none';
-    var kids = node.children;
-    // 分类排序：有子节点在前
-    kids = kids.slice().sort(function(a,b){ return (b.children&&b.children.length?1:0) - (a.children&&a.children.length?1:0); });
-    for (var i=0;i<kids.length;i++){
-      ul.appendChild(buildTree(kids[i], collapsedAll));
-    }
-    el.appendChild(ul);
-  }
-
-  // click
-  row.addEventListener('click', function(ev){
-    ev.stopPropagation();
-    if (!hasKids) {
-      showDetail(node, ev);
-      return;
-    }
-    row.classList.toggle('collapsed');
-    var list = el.querySelector(':scope > ul');
-    if (list) {
-      var showing = list.style.display !== 'none';
-      list.style.display = showing ? 'none' : 'block';
-    }
-  });
-  return el;
+  rootG.appendChild(g);
 }
-
-function showDetail(node, ev) {
-  // 记忆叶子：只有摘要，全文经检索取
-  var meta = [];
-  if (node.date) meta.push(node.date);
-  if (node.type_name) meta.push((node.type_emoji||'') + ' ' + node.type_name);
-  if (node.keywords && node.keywords.length) meta.push('🏷️ ' + node.keywords.slice(0,4).join('、'));
-  if (node.emotion != null) meta.push('情绪 ' + (+node.emotion).toFixed(1));
-  if (node.recall != null) meta.push('检索 ' + node.recall + ' 次');
-  toast('📍 ' + node.name + '\n' + (meta.join(' · ') || '') + '\n\n全文请用 「/忆时 查找」 检索该条记忆。', true);
+function layout(n,angStart,angSpan,depth){
+  var mid=angStart+angSpan/2,r=depthR(depth),rad=mid*Math.PI/180;
+  n._x=CX+Math.cos(rad)*r;n._y=CY+Math.sin(rad)*r;
+  if(n!==tree&&n._parent){drawLink(n._parent._x,n._parent._y,n._x,n._y,n._parent.color||'#4a5a78')}
+  var kind=(n===tree)?'root':(n.type==='type'?'type':(n.type==='topic'?'topic':'leaf'));
+  drawNode(n,kind);
+  if(!n.children)return;
+  if((n!==tree)&&!isOpen(n))return;
+  var kidsArr=n.children,tot=0,i;
+  for(i=0;i<kidsArr.length;i++)tot+=Math.max(1,leafCount(kidsArr[i]));
+  var cur=angStart;
+  for(i=0;i<kidsArr.length;i++){var sp=360*Math.max(1,leafCount(kidsArr[i]))/Math.max(1,tot)*0.92;kidsArr[i]._parent=n;layout(kidsArr[i],cur,sp,depth+1);cur+=sp+1}
 }
-
-function toast(msg, sticky){
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._h);
-  t._h = setTimeout(function(){ t.classList.remove('show'); }, sticky ? 3200 : 900);
+function showTip(n,e){
+  var md=NAMES[n.type_name]||n.type_name||'';
+  tip.querySelector('.th').innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(n.color||'#888')+'"></span>'+(n.date||'')+' · '+md;
+  var meta=[];
+  if(n.keywords&&n.keywords.length)meta.push('🏷️ '+n.keywords.slice(0,5).join('、'));
+  if(n.emotion!=null)meta.push('情绪 '+(+n.emotion).toFixed(1));
+  if(n.recall!=null)meta.push('检索 '+n.recall+'次');
+  tip.querySelector('.tm').textContent=meta.join(' · ');tip.querySelector('.tb').textContent=n.name||'（无内容）';
+  tip.style.display='block';moveTip(e);
 }
-
-function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-
-// 初始默认：只展开 root 一层（显示类型总览），类型/主题皆收起（渐进披露）
-function expandDefault(node){
-  if (node.children) node.children.forEach(function(c){
-    c._collapsed = true; // 类型收起 → 主题隐藏
-    if (c.children) c.children.forEach(function(g){ g._collapsed = true; }); // 主题收起 → 记忆隐藏
-  });
+function moveTip(e){tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+10)+'px'}
+function addDefs(){
+  var defs=document.createElementNS(S,'defs');
+  defs.innerHTML='<radialGradient id="gRoot" cx="35%" cy="35%"><stop offset="0%" stop-color="#2EC4B6"/><stop offset="60%" stop-color="#9B5DE5"/><stop offset="100%" stop-color="#F72585"/></radialGradient>';
+  rootG.appendChild(defs);
 }
-if (DATA.tree){ DATA.tree._collapsed = false; expandDefault(DATA.tree); }
-treeEl.appendChild(buildTree(DATA.tree, false));
-
-// 元信息
-document.getElementById('meta').textContent = '共 ' + (DATA.total||0) + ' 条记忆 · 导出 ' + (DATA.export_date||'')
-  + ' · 脑图仅载摘要，全文走检索';
-// 图例
-var lgEl = document.getElementById('legend');
-for (var t in COLORS){
-  var n = NAMES[t] || t;
-  var s = document.createElement('span');
-  s.className='lg';
-  s.innerHTML = '<i style="background:'+COLORS[t]+'"></i>' + n;
-  lgEl.appendChild(s);
-}
-// 底部
-document.getElementById('foot').innerHTML =
-  '💡 <b>脑图为记忆索引</b>——只含类型/主题/摘要，省 token。想看某条全文：<b>/忆时 查找 &lt;关键词&gt;</b> 检索最相关的记忆。'
-  + ' 共 ' + (DATA.total||0) + ' 条 · 逐层展开。';
+function render(){rootG.innerHTML='';addDefs();layout(tree,-90,360,0)}
+function openAll(n){if(n.children){n.open=true;for(var i=0;i<n.children.length;i++)openAll(n.children[i])}}
+function closeAll(n){if(n.children){n.open=false;for(var i=0;i<n.children.length;i++)closeAll(n.children[i])}}
+document.getElementById('bExpand').onclick=function(){openAll(tree);render()};
+document.getElementById('bCollapse').onclick=function(){closeAll(tree);tree.open=true;render()};
+document.getElementById('bReset').onclick=function(){scale=1;tx=CX;ty=CY;applyT();closeAll(tree);tree.open=true;render()};
+var scale=1,tx=CX,ty=CY;
+function applyT(){rootG.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')')}
+canvas.addEventListener('wheel',function(e){e.preventDefault();var f=e.deltaY>0?0.88:1.12;scale*=f;scale=Math.max(.3,Math.min(3,scale));applyT()},{passive:false});
+var drag=false,sx=0,sy=0;
+canvas.addEventListener('mousedown',function(e){if(e.target===canvas){drag=true;sx=e.clientX;sy=e.clientY;canvas.classList.add('drag')}});
+window.addEventListener('mousemove',function(e){if(!drag)return;tx+=e.clientX-sx;ty+=e.clientY-sy;sx=e.clientX;sy=e.clientY;applyT()});
+window.addEventListener('mouseup',function(){drag=false;canvas.classList.remove('drag')});
+var lg=document.getElementById('legend'),t;
+for(t in COLORS){var sp=document.createElement('span');sp.className='lg';sp.innerHTML='<i style="background:'+COLORS[t]+'"></i>'+(NAMES[t]||t);lg.appendChild(sp)}
+document.getElementById('meta').textContent='共 '+(DATA.total||0)+' 条记忆 · 导出 '+(DATA.export_date||'')+' · 点类型/主题展开';
+render();applyT();
 </script>
 </body>
 </html>
