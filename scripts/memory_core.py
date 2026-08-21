@@ -446,6 +446,20 @@ def _merge_keywords(old_kw, new_kw):
     return ",".join(merged)
 
 
+def make_title(content, max_len=60):
+    """从内容首句生成简洁标题，供 csv/title 字段用。
+
+    规则：取第一句（遇到句号/问号/感叹号/换行），截断至 max_len 字符。
+    若超长则截断并加 '…'。若结果为空，回退到内容前 max_len 字符。
+    """
+    import re
+    m = re.search(r"^(.+?[。！？\n.!?])", content.strip())
+    title = m.group(1).strip() if m else content.strip()
+    if len(title) > max_len:
+        title = title[:max_len-1] + "…"
+    return title or content[:max_len]
+
+
 def cmd_store(args):
     client = get_client()
     mem_col = get_collection(client, "memories")
@@ -457,6 +471,7 @@ def cmd_store(args):
         "type": mem_type,
         "emotion": emo_val,
         "emotion_weight": emo_val,
+        "title": getattr(args, "title", None) or make_title(args.content),
         "created_at": now.isoformat(),
         "created_date": now.strftime("%Y-%m-%d"),
         "updated_at": now.isoformat(),
@@ -503,6 +518,7 @@ def cmd_store(args):
                             new_content = f"{ocontent}。{args.content.strip()}"
                         nm = dict(om)
                         nm["content"] = new_content
+                        nm["title"] = om.get("title") or make_title(new_content)
                         nm["keywords"] = _merge_keywords(om.get("keywords", ""), args.keywords or "")
                         nm["frequency"] = int(om.get("frequency", 1)) + 1
                         nm["updated_at"] = now.isoformat()
@@ -1096,6 +1112,7 @@ def cmd_import(args):
                 "type": mem.get("type", "imported"),
                 "emotion": norm_emotion(mem.get("emotion")),
                 "emotion_weight": norm_emotion(mem.get("emotion")),
+                "title": mem.get("title") or make_title(content),
                 "created_at": mem.get("created_at", _now().isoformat()),
                 "created_date": mem.get("created_date", ""),
                 "updated_at": _now().isoformat(),
@@ -1120,6 +1137,7 @@ def cmd_import(args):
         metadata = {
             "type": "imported", "emotion": emo,
             "emotion_weight": emo,
+            "title": entry.get("title") or make_title(entry.get("content", "")),
             "created_at": entry.get("date", _now().isoformat()),
             "created_date": entry.get("date", "")[:10],
             "updated_at": _now().isoformat(),
@@ -1289,6 +1307,7 @@ def main():
 
     p = sub.add_parser("store", help="存储新记忆")
     p.add_argument("content", help="记忆内容")
+    p.add_argument("--title", help="简洁标题（默认自动从首句生成）")
     p.add_argument("--type", choices=VALID_TYPES, help="记忆类型")
     p.add_argument("--emotion", help="情绪强度（0.0~1.0 数值，如 0.9；兼容旧词 high/medium/low）")
     p.add_argument("--keywords", help="关键字")

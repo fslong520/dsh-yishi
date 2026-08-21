@@ -90,6 +90,14 @@ def build_mindmap(data, out):
     for m in memories:
         md = m.get("metadata", {})
         kw = md.get("keywords", "") or ""
+        content = m.get("content") or ""
+        # 对旧记忆（无 title 字段），从内容首句生成
+        title = md.get("title") or ""
+        if not title:
+            import re
+            m2 = re.search(r"^(.+?[。！？\n.!?])", content.strip())
+            title = m2.group(1).strip() if m2 else content[:60]
+            if len(title) > 60: title = title[:59] + "…"
         records.append({
             "id": m["id"],
             "type": md.get("type", "context"),
@@ -101,6 +109,9 @@ def build_mindmap(data, out):
             "recall": int(md.get("recall_count", 0) or 0),
             "topic": classify(kw),
             "c": summarize(m.get("content", "")),
+            "title": title,
+            "content_len": len(content),
+            "_full": content,
         })
 
     # 读取语义关系（relationships 集合），构建网状图
@@ -111,7 +122,9 @@ def build_mindmap(data, out):
     for r in records:
         nodes.append({
             "id": r["id"],
-            "label": r["c"],
+            "title": r["title"],          # 节点简洁标题
+            "label": r["c"],              # 摘要（60字）
+            "full": r.get("_full", ""),   # 完整内容（悬停显示）
             "type": r["type"],
             "type_name": TYPE_NAMES.get(r["type"], r["type"]),
             "type_emoji": TYPE_EMOJIS.get(r["type"], ""),
@@ -119,7 +132,8 @@ def build_mindmap(data, out):
             "date": r["date"],
             "keywords": r["keywords"],
             "recall": r["recall"],
-            "freq": r["freq"],
+            "freq": r["freq"],            # 频次（节点大小参与因素）
+            "content_len": r["content_len"],  # 内容长度（节点大小参与因素）
             "color": TYPE_COLORS.get(r["type"], "#89b4fa"),
         })
 

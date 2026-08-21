@@ -31,6 +31,10 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
 #nodeinfo .nm{font-size:11px;color:var(--muted);margin-bottom:4px}
 #nodeinfo .nb{color:var(--text);font-size:12px;max-height:180px;overflow-y:auto}
 #nodeinfo #nbtn{margin-top:8px;background:#2EC4B6;border:none;color:#0b1220;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600}
+#tooltip{position:absolute;pointer-events:none;z-index:30;display:none;max-width:320px;background:rgba(24,24,37,.96);border:1px solid var(--border);border-left:3px solid var(--hl);border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.5;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+#tooltip .tt{font-weight:700;font-size:12px;margin-bottom:2px;color:#fff}
+#tooltip .tm{font-size:10px;color:var(--muted);margin-bottom:4px}
+#tooltip .tb{max-height:160px;overflow-y:auto;word-break:break-all;white-space:pre-wrap}
 #statbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:20;font-size:11px;color:var(--muted);background:rgba(24,24,37,.8);padding:6px 14px;border-radius:8px;border:1px solid var(--border);white-space:nowrap}
 </style>
 </head>
@@ -53,7 +57,8 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
       <button class="tbtn" id="tbActive" title="以当前节点为中心">◎</button>
       <button class="tbtn" id="tbCenter" title="重置缩放居中">⟳</button>
     </div>
-    <div id="hint">拖动节点 · 滚轮缩放<br>点击节点：高亮邻接·看详情<br>空白拖动平移画布</div>
+    <div id="tooltip"><div class="tt"></div><div class="tm"></div><div class="tb"></div></div>
+    <div id="hint">拖动节点 · 滚轮缩放<br>点击节点：高亮邻接·看详情<br>悬停节点：预览完整内容</div>
     <div id="nodeinfo"><div class="nh"></div><div class="nm"></div><div class="nb"></div><button id="nbtn">关闭高亮</button></div>
     <div id="statbar"></div>
   </div>
@@ -123,7 +128,15 @@ function setView(ns, ls){ vNodes=ns; vLinks=ls;
 }
 
 // ---------- 渲染 ----------
-function nodeRadius(n){ return (Curm + degree[n.id]/maxDegree*(zxm-Curm)); }
+function nodeRadius(n){
+  // 大小 ∝ 记忆容量(content_len) × 频次(freq)，叠加关系度
+  var sizeNorm = 0;
+  if(n.content_len) sizeNorm += (Math.min(n.content_len, 2000) / 2000) * 0.55;  // 容量权重
+  if(n.freq) sizeNorm += (Math.min(n.freq, 10) / 10) * 0.30;                    // 频次权重
+  if(degree[n.id]) sizeNorm += (degree[n.id] / maxDegree) * 0.15;               // 关系度权重
+  // 映射到 [Curm, zxm]
+  return Curm + sizeNorm * (zxm - Curm);
+}
 function nodeColor(n){
   if(activeNodeId && (n.id===activeNodeId || linksUnder.has(n.id))) {
     if(n.id===activeNodeId) return '#f38ba8';
@@ -163,11 +176,11 @@ function render(){
     ctx.stroke();
     // 标签（缩放着 >0.5）
     if(zoomT && zoomT.k>=0.5){
-      var label=(n.label||'').slice(0,20);
+      var tit = (n.title || n.label || n.id || '').slice(0,20);
       ctx.font=(10)+'px "PingFang SC",sans-serif';
       ctx.fillStyle=(activeNodeId&&n.id!==activeNodeId)?'rgba(205,214,244,0.5)':'#cdd6f4';
       ctx.textAlign='center';
-      ctx.fillText(label, n.x, n.y-r-4);
+      ctx.fillText(tit, n.x, n.y-r-4);
     }
   });
 
@@ -244,12 +257,38 @@ function hitTest(e){
   return best;
 }
 // 悬停
+var tooltipEl = document.getElementById('tooltip');
 canvas.addEventListener('mousemove', function(e){
   var n=hitTest(e);
   if(n && hoverNodeId!==n.id){ hoverNodeId=n.id; render(); }
   else if(!n && hoverNodeId){ hoverNodeId=null; render(); }
+  // 悬停显示完整内容
+  if(n){
+    var rect = canvas.getBoundingClientRect();
+    var tx = e.clientX - rect.left + 12;
+    var ty = e.clientY - rect.top + 12;
+    if(tx + 320 > rect.width) tx = rect.width - 330;
+    if(ty + 200 > rect.height) ty = rect.height - 210;
+    tooltipEl.style.left = tx+'px';
+    tooltipEl.style.top = ty+'px';
+    tooltipEl.querySelector('.tt').textContent = n.title || n.label || '';
+    var meta = [];
+    if(n.type_name) meta.push(typeEmoji[n.type] + typeName[n.type]);
+    if(n.date) meta.push(n.date);
+    if(n.keywords && n.keywords.length) meta.push('🏷️' + n.keywords.slice(0,4).join(','));
+    if(n.freq) meta.push('频次'+n.freq);
+    tooltipEl.querySelector('.tm').textContent = meta.join(' · ');
+    tooltipEl.querySelector('.tb').textContent = n.full || n.label || '（无详细内容）';
+    tooltipEl.style.display = 'block';
+  } else {
+    tooltipEl.style.display = 'none';
+  }
 });
-canvas.addEventListener('mouseleave', function(){ hoverNodeId=null; render(); });
+canvas.addEventListener('mouseleave', function(){
+  hoverNodeId=null;
+  tooltipEl.style.display='none';
+  render();
+});
 
 // ---------- 搜索 ----------
 var search = document.getElementById('search');
@@ -260,7 +299,7 @@ search.addEventListener('input', function(){
   else {
     var keep = new Set();
     nodes0.forEach(function(n){
-      var hay=(n.label||'')+' '+(n.keywords||[]).join(' ');
+      var hay=(n.title||'')+' '+(n.label||'')+' '+(n.keywords||[]).join(' ');
       if(hay.toLowerCase().includes(q)) keep.add(n.id);
     });
     ns = nodes0.filter(function(n){ return keep.has(n.id); });
@@ -291,14 +330,16 @@ document.getElementById('nbtn').addEventListener('click', function(){
 // ---------- 节点详情 ----------
 function showNodeInfo(n){
   var info=document.getElementById('nodeinfo');
-  info.querySelector('.nh').textContent=(typeEmoji[n.type]||'')+' '+(typeName[n.type]||n.type)+' · '+(n.date||'');
+  info.querySelector('.nh').textContent=(typeEmoji[n.type]||'')+' '+(n.title||n.label||'');
   var meta=[];
   if(n.keywords&&n.keywords.length) meta.push('🏷️ '+n.keywords.slice(0,6).join('、'));
   if(n.emotion!=null) meta.push('情绪 '+ (+n.emotion).toFixed(1));
+  if(n.freq) meta.push('频次 '+n.freq);
   if(n.recall!=null) meta.push('检索 '+n.recall+'次');
   if(degree[n.id]!=null) meta.push('关联 '+degree[n.id]);
+  if(n.date) meta.push(n.date);
   info.querySelector('.nm').textContent=meta.join(' · ');
-  info.querySelector('.nb').textContent=n.label||'';
+  info.querySelector('.nb').textContent=n.full || n.label || '';
   info.style.display='block';
 }
 
