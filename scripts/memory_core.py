@@ -1476,7 +1476,7 @@ def main():
 
     p = sub.add_parser("recall", help="检索记忆")
     p.add_argument("query", help="查询内容")
-    p.add_argument("--limit", type=int, default=10, help="返回数量")
+    p.add_argument("--limit", type=int, default=3, help="返回数量（默认3，最相关三条）")
     p.add_argument("--mode", choices=["all", "recent", "emotion", "semantic"], help="检索模式")
     p.add_argument("--min-weight", type=float, default=0.0, help="最低权重分数")
     p.add_argument("--type-filter", choices=VALID_TYPES, help="按类型过滤")

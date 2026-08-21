@@ -6,7 +6,7 @@
 
 取工作目录之末尾目录名（即项目名）：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "项目名" --limit 5 --expand
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "项目名" --limit 3 --expand
 ```
 若项目无关，则取其父目录名再试。过去涉及该项目之决策、偏好、任务皆可浮现。
 
@@ -19,13 +19,13 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **第零轮（并行触发）：**
 收到用户消息后，立即以 background 任务发起语义检索，与分析用户意图并行执行：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户发言核心关键词" --limit 5 --expand
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户发言核心关键词" --limit 3 --expand
 ```
 检索结果须在本次回复结束前收集并体现。
 
 **第一轮：语义检索**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户发言关键词" --limit 5 --expand
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户发言关键词" --limit 3 --expand
 ```
 
 **第二轮：涌现判定（强制）**
@@ -41,7 +41,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **第三轮：情绪锚定（强制）**
 每轮都查情绪锚定，而非仅"情绪显著时"。以情绪倾向词 + 话题词检索：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "话题词 情绪倾向" --type-filter emotion --min-weight 0.5 --limit 2
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "话题词 情绪倾向" --type-filter emotion --min-weight 0.5 --limit 3
 ```
 
 **涌现表达原则：**
@@ -55,7 +55,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 | 级数 | 触发条件 | 行动 |
 |------|----------|------|
 | L0 | 首次出现的话题 | 标准四轮检索，正常表达 |
-| L1 | 同一话题重复出现（2次+） | `--limit 8` + 跨类型搜索，另取近义词再检索一轮 |
+| L1 | 同一话题重复出现（2次+） | `--limit 3` + 跨类型搜索，另取近义词再检索一轮 |
 | L2 | 检索为空 | 换2-3组不同角度关键词，逐组重试 |
 | L3 | 检索仅1条 | 以该条关键词做二次扩散检索 |
 | L4 | 用户情绪强烈 | 情绪锚定权重提升至 `--min-weight 0.7`，重点搜emotion类型 |
@@ -64,14 +64,14 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 
 **命令示例（深度检索）：**
 ```bash
-# L1 加深：扩大limit + 跨类型
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户话题关键词" --limit 8 --expand
+# L1 加深：跨类型搜索（默认3条最相关）
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户话题关键词" --limit 3 --expand
 
 # L2 换角度：近义词/同义表达
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "近义词" --limit 5 --expand
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "近义词" --limit 3 --expand
 
 # L3 扩散检索：以命中条的关键词延伸
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "已有结果的关键词 新角度" --limit 5 --expand
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "已有结果的关键词 新角度" --limit 3 --expand
 
 # L4 情绪锚定强搜索
 MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "话题词 情绪词" --type-filter emotion --min-weight 0.7 --limit 3
