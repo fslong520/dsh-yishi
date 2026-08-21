@@ -838,8 +838,8 @@ def cmd_recall(args):
                 kw_display = "、".join(kw_list)
 
         content = item['content'].replace('\n', ' ').strip()
-        per_limit = max_per if max_per else 100
-        if len(content) > per_limit:
+        per_limit = max_per if max_per else 0
+        if per_limit and len(content) > per_limit:
             content = content[:max(0, per_limit - len(TRUNC_SUFFIX))].rstrip() + TRUNC_SUFFIX
 
         line_est = len(content) + len(kw_display) + len(item.get("activity_start", "")) + len(item.get("activity_end", "")) + 60
