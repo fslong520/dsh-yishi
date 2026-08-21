@@ -65,6 +65,7 @@ metadata:
 | 记忆自动梳理（上次梳理过期7日） | modules/10-consolidation.md |
 | 模型安装/切换、opencode.json 配置 | modules/08-setup.md |
 | 复杂任务规划、上下文压缩后自查、长文索引 | modules/14-behavior.md |
+| 需求暧昧、意图不清、先问清再作答 | modules/15-ask-intent.md |
 | 首次初始化、Chroma 集合结构 | modules/01-initialize.md |
 | 定时主动模式（胶囊检查/遗忘归档） | modules/03-active-mode.md |
 | 时间胶囊管理 | modules/04-time-capsule.md |
@@ -121,6 +122,7 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 |------|------|
 | 完成任务后 | 按审计三问自查：结果问→过程问→改进问，全过方可言"完" |
 | 收到复杂需求 | 先存方案到忆时，再规划步骤，逐条标记完成 |
+| 需求暧昧/意图不清 | 先问清再作答，用澄清四问骨架（见 modules/15-ask-intent.md） |
 | 发现用户偏好 | 以 `--type preference` 即时存储 |
 | 做出关键决策 | 以 `--type decision --emotion 0.9` 存储，附决策理由 |
 | 用户交付长文 | 提取metadata，按索引思维存储（见 modules/14） |
@@ -153,7 +155,8 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 │   ├── 11-quick-commands.md    # 快捷操作详解
 │   ├── 12-viz-profile.md       # 可视化与人物画像
 │   ├── 13-retrieval-store.md   # 记忆操作流程 (检索/存储细则)
-│   └── 14-behavior.md          # 认知自知与上下文工程
+│   ├── 14-behavior.md          # 认知自知与上下文工程
+│   └── 15-ask-intent.md        # 需求澄清——先问清再作答
 ├── models/                     # （预留，仅 bge 模型不落此——运行时模型在 LOCAL_BASE）
 ├── scripts/
 │   ├── memory_core.py          # 核心引擎 CLI
@@ -163,7 +166,9 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 │       ├── profile.py          # 人物画像助手（素材报告 + 正文注入）
 │       └── profile_template.html # 画像模板（<!--DATA-->/<!--CONTENT--> 占位）
 └── references/
-    └── chroma-api.md           # ChromaDB API 参考
+    ├── chroma-api.md           # ChromaDB API 参考
+    ├── asking-techniques.md    # 提问技术参考（卡兹克法提炼，意图澄清）
+    └── kazik-12-prompts.md     # 卡兹克《12个最常用Prompt》原文存档
 ```
 
 ## 运行环境
