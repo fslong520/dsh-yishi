@@ -53,5 +53,8 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
+  },
+  "dependencies": {
+    "jsmind": "^0.9.1"
   }
 }
