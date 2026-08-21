@@ -111,9 +111,7 @@ RRF_K = 60.0                # RRF 融合常数（标准值 60）
 BM25_K1 = 1.5               # BM25 词频饱和参数
 BM25_B = 0.75               # BM25 文档长度归一参数
 BM25_SEM_CAP = 0.7          # BM25 归一化分封顶：关键词命中 ≠ 语义相关，防虚高顶榜
-MERGE_SIM_HIGH = 0.90       # 去重：相似度高于此值 → 自动合并（实测子串包含≈0.91）
-MERGE_SIM_CLUSTER = 0.70    # 查簇：存入时检索相似度≥此值之候选，报给 AI 决策
-MERGE_SIM_WARN = 0.70       # 去重警告阈值
+MERGE_SIM_CLUSTER = 0.70    # 有机合并：语义相似度≥此值，存时自动并入簇（矛盾以后来者为准）
 BM25_KEYWORD_WEIGHT = 2     # keywords 分词重复次数（权重×2）
 _STOP_WORDS = frozenset(
     "的了是在我有和就都而及与或一个不也这那你们我们他们她他它它们被把让从到对向为以于之乎者也"
@@ -506,9 +504,10 @@ def cmd_store(args):
         if val is not None:
             metadata[key] = val
 
-    # ── 存前语义查簇：找出 相似度 > MERGE_SIM_CLUSTER 的候选，供 AI 决策 ──
-    # 2026-08-22 改：存入时检索相似簇（≥阈值），把候选+相似度报给调用者(AI)，
-    # 由 AI 综合考虑决定「机械存储」还是「有机合并」，不自动拼接（防滚雪球膨胀）。
+    # ── 语义查簇：检索相似 ≥70% 候选，供 AI 读取决策 ──
+    # 2026-08-22 定稿：有机合并=AI 读取候选原文，判断能否综合成一条。
+    #   能合并 → --merge-ids "id1,id2" 删旧存新（内容=综合合并版）；
+    #   不能 → 机械存储兜底（或 --force 静默）。决策权在 AI，脚本不自动拼不自动删。
     cluster = []
     if not getattr(args, "force", False):
         try:
@@ -516,8 +515,6 @@ def cmd_store(args):
             if cq["ids"] and cq["ids"][0]:
                 for j in range(len(cq["ids"][0])):
                     mid = cq["ids"][0][j]
-                    if mid == getattr(args, "merge_target", None):
-                        continue
                     dist = cq["distances"][0][j] if cq["distances"] else 1.0
                     sem = 1.0 - dist
                     if sem >= MERGE_SIM_CLUSTER:
@@ -525,85 +522,40 @@ def cmd_store(args):
         except Exception:
             cluster = []
 
-    # 用户主动指定 --merge-target：把[内容]合并进指定记忆（AI 有机合并）
-    if getattr(args, "merge_target", None):
-        tid = args.merge_target
-        try:
-            tg = mem_col.get(ids=[tid])
-            if not tg["ids"]:
-                print(f"错误: 合并目标 {tid} 未找到"); sys.exit(1)
-            tm = tg["metadatas"][0]
-            tocontent = tg["documents"][0]
-            new_content = tocontent
-            if args.content.strip() and args.content.strip() not in tocontent:
-                new_content = f"{tocontent}。{args.content.strip()}"
-            nm = dict(tm)
-            nm["content"] = new_content
-            nm["title"] = tm.get("title") or make_title(new_content)
-            if args.keywords:
-                nm["keywords"] = _merge_keywords(tm.get("keywords", ""), args.keywords)
-            nm["frequency"] = int(tm.get("frequency", 1)) + 1
-            nm["updated_at"] = now.isoformat()
-            if emo_val > float(tm.get("emotion_weight", 0.5)):
-                nm["emotion"] = emo_val
-                nm["emotion_weight"] = emo_val
-            mem_col.update(ids=[tid], documents=[new_content], metadatas=[nm])
-            _append_backup(tid, new_content, nm)
-            print(f"✅ 已有机合并进 {tid[:12]}（AI 决策：碎片同主题）")
-            print(f"  ID: {tid}  frequency: {nm['frequency']}")
-            return tid
-        except SystemExit:
-            sys.exit(1)
-        except Exception as e:
-            print(f"⚠️ 合并失败: {e}"); sys.exit(1)
-
-    # 自动高重复合并：仅 相似度 > MERGE_SIM_HIGH(0.90) 才自动并入（确凿重复）
-    if not getattr(args, "force", False):
-        high_dup = [c for c in cluster if c[1] > MERGE_SIM_HIGH]
-        if high_dup:
-            did = high_dup[0][0]
-            dsim = high_dup[0][1]
-            old = mem_col.get(ids=[did])
-            if old["ids"]:
-                om = old["metadatas"][0]
-                ocontent = old["documents"][0]
-                new_content = ocontent
-                if args.content.strip() and args.content.strip() not in ocontent:
-                    new_content = f"{ocontent}。{args.content.strip()}"
-                nm = dict(om)
-                nm["content"] = new_content
-                nm["title"] = om.get("title") or make_title(new_content)
-                nm["keywords"] = _merge_keywords(om.get("keywords", ""), args.keywords or "")
-                nm["frequency"] = int(om.get("frequency", 1)) + 1
-                nm["updated_at"] = now.isoformat()
-                if emo_val > float(om.get("emotion_weight", 0.5)):
-                    nm["emotion"] = emo_val
-                    nm["emotion_weight"] = emo_val
-                for f in ("scene", "activity_start", "activity_end"):
-                    if getattr(args, f, None) and not om.get(f):
-                        nm[f] = getattr(args, f)
-                mem_col.update(ids=[did], documents=[new_content], metadatas=[nm])
-                _append_backup(did, new_content, nm)
-                print(f"记忆已合并（自动高重复 {dsim:.0%} > {MERGE_SIM_HIGH:.0%}）")
-                print(f"  ID: {did}  frequency: {nm['frequency']}")
-                return did
-
-    # ── 供 AI 决策：报相似簇（0.70~0.90 未自动合并者） ──
-    # 存入仍执行（机械存储兜底），但把高相关候选报给调用者(AI)，
-    # 由 AI 综合考虑决定是否用 --merge-target 有机合并。
-    decision_cluster = [c for c in cluster if c[1] <= MERGE_SIM_HIGH]
-    if not getattr(args, "force", False) and decision_cluster:
-        decision_cluster.sort(key=lambda x: -x[1])
-        print(f"🔎 检测到相似记忆簇（供 AI 决策机械存储 or 有机合并，阈值 ≥{MERGE_SIM_CLUSTER:.0%}）：")
-        for mid, sem in decision_cluster[:6]:
+    # AI 决策：合并（--merge-ids）→ 删指定旧记忆，存综合合并版为新条目
+    if getattr(args, "merge_ids", None):
+        ids_to_merge = [i.strip() for i in args.merge_ids.split(",") if i.strip()]
+        dropped = 0
+        for mid in ids_to_merge:
             try:
-                gd = mem_col.get(ids=[mid])
-                de = (gd["documents"][0] or "") if gd["documents"] else ""
-                dk = (gd["metadatas"][0].get("keywords", "") or "") if gd["metadatas"] else ""
+                mem_col.delete(ids=[mid])
+                dropped += 1
             except Exception:
-                de, dk = "", ""
-            print(f"  {sem:.0%}  {mid[:12]} | {(dk or '')[:34]} | {de[:38]}")
-        print("  → 若判碎片重复，用 --merge-target <ID> 有机合并；否则无视，机械存储（--force 可屏蔽此报告）")
+                pass
+        # 综合合并版作为新条目存储
+        new_mid = str(uuid.uuid4())
+        mem_col.add(documents=[args.content], metadatas=[metadata], ids=[new_mid])
+        _update_meta_total(client, "total_memories", 1)
+        _append_backup(new_mid, args.content, metadata)
+        print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
+        return new_mid
+
+    # 有候选 → 完整打印供 AI 读取判断（内容全量，非片段）
+    if cluster and not getattr(args, "force", False):
+        cluster.sort(key=lambda x: -x[1])
+        print(f"🔎 发现语义相似候选 {len(cluster)} 条（≥{MERGE_SIM_CLUSTER:.0%}），请 AI 读取判断：")
+        for mid, sem in cluster[:8]:
+            try:
+                og = mem_col.get(ids=[mid])
+                oc = og["documents"][0] if og["documents"] else ""
+                ok = (og["metadatas"][0].get("keywords", "") or "") if og["metadatas"] else ""
+                od = (og["metadatas"][0].get("created_date", "") or "") if og["metadatas"] else ""
+            except Exception:
+                oc, ok, od = "", "", ""
+            print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
+            print(f"  {oc}")
+        print(f"\n  → 决策：能综合合并 → store \"综合合并版\" --merge-ids \"{cluster[0][0]},...\"（删旧存新）")
+        print(f"  → 不能合并 → 已机械存储兜底（或 --force 静默）")
 
     mem_id = str(uuid.uuid4())
     mem_col.add(documents=[args.content], metadatas=[metadata], ids=[mem_id])
@@ -611,18 +563,6 @@ def cmd_store(args):
 
     # 自动备份到 JSONL（与 data/ 独立，不怕误删）
     _append_backup(mem_id, args.content, metadata)
-
-    # 去重警告（相似但未达合并阈值）
-    if not getattr(args, "force", False):
-        try:
-            wq = mem_col.query(query_texts=[args.content], n_results=1)
-            if wq["ids"] and wq["ids"][0]:
-                wdist = wq["distances"][0][0] if wq["distances"] else 1.0
-                wsim = 1.0 - wdist
-                if wsim > MERGE_SIM_WARN and wq["ids"][0][0] != mem_id:
-                    print(f"  ⚠️ 提示: 与已有记忆相似 {wsim:.0%}（ID: {wq['ids'][0][0]}），可能重复")
-        except Exception:
-            pass
 
     # 自动建语义关联：找相似记忆，写入 relationships 集合
     # 关键词各自保留，不做跨记忆融合（避免关键词雪球式膨胀）
@@ -1521,7 +1461,7 @@ def main():
     p.add_argument("--activity-start", help="活动开始时间（如 2025-05-01）")
     p.add_argument("--activity-end", help="活动结束时间（如 2025-05-10）")
     p.add_argument("--force", action="store_true", help="跳过去重合并，强制新增")
-    p.add_argument("--merge-target", help="有机合并：把本内容并进指定记忆ID（AI 决策）")
+    p.add_argument("--merge-ids", help="AI 有机合并：删指定记忆ID(逗号分隔)，本内容(综合合并版)存为新条目")
     p.add_argument("--skill-name", help="技能名称")
     p.add_argument("--skill-summary", help="技能一句话概括")
     p.add_argument("--skill-strategy", help="技能策略/步骤")

@@ -95,7 +95,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 - 有 → 提取 2-3 关键词，检索旧忆后再决定新增还是更新
 - 无 → 静默跳过，无需告知
 - 宁多勿少：反正本地存储，激进胜过保守
-- **存时决策（2026-08-22 改）**：store 默认检索语义相似≥70% 候选簇，打印供 AI 综合决策。AI 判同主题碎片→`--merge-target <ID>` 有机合并；判不同主题→机械存储（或 `--force` 静默新增）。仅 >90% 确凿重复才自动并入。
+- **存时决策（2026-08-22 定稿）**：store 默认检索语义相似≥70% 候选簇并**完整打印候选原文**，AI 读取后决策：能综合合并→`--merge-ids` 删旧存新（综合版）；不能→机械存储兜底（`--force` 静默）。**决策权在 AI**，脚本不自动拼不自动删。
 
 **存储质量门（存储前必过三问）：**
 ```
@@ -114,13 +114,18 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 
 **存储命令：**（内容为位置参数放最后，勿用 `--content`/`--tags`；关键字用 `--keywords`）
 ```bash
-# 机械存储（默认）：存前检索相似>70%候选并报告，由 AI 综合考虑决定
+# 默认：存前检索相似≥70%候选，完整打印候选原文供 AI 读取判断；机械存储兜底
 MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字"
-# 屏蔽相似簇报告，强制新增
+# AI 判不能合并：静默强制新增
 MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --force
-# 有机合并：AI 判碎片重复时，并进指定记忆（含 keywords/频率，content 去重追加）
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --merge-target <目标ID>
+# AI 判能合并：删指定旧记忆(逗号分隔)，本内容(综合合并版)存为新条目
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "综合合并版" --type 类型 --merge-ids "旧ID1,旧ID2"
 ```
+**存时决策流程（AI 主导）**：
+1. store 打印相似≥70% 候选的**完整原文**（非片段）——AI 必须读到全文才能判断。
+2. **能综合合并**（同主题碎片/矛盾可消）→ 写综合合并版（前因/行为/后果、矛盾以后来者为准），`--merge-ids` 删旧存新。
+3. **不能合并**（仅字面相似、实不同主题）→ 机械存储已兜底，或 `--force` 静默。
+4. 三条红线照常：存必核（读回确认）、存必告（告知机械存储 or 有机合并）。
 **title 字段**：store 自动生成（`make_title` 取内容首段，≤10 字）供图谱节点标签。可不传，自动即够；特殊情形可 `--title` 覆盖。
 
 **语义合并命令（merge，2026-08-22 立）：** 梳理时高相关记忆**靠语义检索合并，非字符串**。autostore 去重仅在相似≥90% 机械拼接内容（`旧。新`），措辞稍异即分家致同主题多条矛盾——故梳理须用 `merge` 语义识簇、AI 手写权威版、删旧。
