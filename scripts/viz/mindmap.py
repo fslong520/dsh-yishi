@@ -215,6 +215,8 @@ def _merge_similar(records, links):
 
     nodes = []
     node_key = {}
+    node_kws = {}     # 节点 id -> 关键词集合（供孤儿连线）
+    single_ids = []   # 纯孤立节点 id（无关系）
 
     def make_node(ids, _is_single=False):
         grs = [rmap[i] for i in ids]
@@ -227,9 +229,12 @@ def _merge_similar(records, links):
             for r in grs
         ]
         cid = f"grp_{len(nodes)}"
-        title = center["title"]
+        t_raw = center["title"]
+        if len(t_raw) > 30:
+            t_raw = t_raw[:29] + "…"
+        title = t_raw
         if len(ids) > 1:
-            title = f"{center['title'][:28]}…（{len(ids)}条相似）"
+            title = f"{t_raw[:28]}…（{len(ids)}条相似）"
         nodes.append({
             "id": cid,
             "title": title,
@@ -250,6 +255,14 @@ def _merge_similar(records, links):
         })
         for i in ids:
             node_key[i] = cid
+        # 收集该节点关键词集（合并成员的关键词）
+        kws = set()
+        for g in grs:
+            for k in g["keywords"]:
+                kws.add(k)
+        node_kws[cid] = kws
+        if _is_single:
+            single_ids.append(cid)
 
     # 关系簇
     for c in rel_clusters:
@@ -270,6 +283,27 @@ def _merge_similar(records, links):
     for (a, b), scores in agg.items():
         new_links.append({"source": a, "target": b, "score": round(max(scores), 3),
                           "count": len(scores)})
+
+    # 扩展：纯孤立节点按关键词重叠连入网络（免其悬空成碎片）
+    key_pairs = {(l["source"], l["target"]) for l in new_links}
+    key_pairs |= {(l["target"], l["source"]) for l in new_links}
+    for sid in single_ids:
+        best = None; best_overlap = 0
+        sk = node_kws.get(sid, set())
+        if not sk:
+            continue
+        for cid, ck in node_kws.items():
+            if cid == sid:
+                continue
+            ov = len(sk & ck)
+            if ov >= 2 and ov > best_overlap:
+                best_overlap = ov
+                best = cid
+        if best and (sid, best) not in key_pairs and (best, sid) not in key_pairs:
+            key_pairs.add((sid, best))
+            new_links.append({"source": sid, "target": best,
+                              "score": round(min(0.5 + best_overlap * 0.05, 0.9), 3),
+                              "count": best_overlap})
     return nodes, new_links
 
 
