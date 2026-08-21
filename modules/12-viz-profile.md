@@ -16,6 +16,8 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/vi
 | `--no-open` | 生成后不自动打开浏览器 |
 | `--data x.json` | 复用已有导出 JSON，跳过重新导出 |
 | `--filter "kw1,kw2"` | 按逗号分隔关键词**仅搜 metadata.keywords 字段**，生成专题记忆之书（如 `--filter "openKylin,ukui"`） |
+| `--topic "主题名"` | 按主题过滤（系统运维/GESP考级/纸焰小说…，classify 所得） |
+| `--label "书名"` | 封面书题标签，覆盖默认显示的关键词/主题（如 `--topic "系统运维" --label "openKylin"`） |
 
 **产出**：单文件自包含 HTML（孟菲斯 Modern 风格——暖灰底/品牌橙/chunky shadow/黑粗边），**书页式**布局（A4 比例，3D 翻页动画）：封面（孟菲斯装饰+统计徽章）→ 藏卷统计（类型/情绪条形）→ 时序与热度（月度柱状+高频 Top3）→ 目录（10 主题卷目，点击跳转）→ 主题卷页（每页 4 条记忆卡一条一条，含关键词 chips；每条限高 3 行，超长悬停显全文——无提示文字，用户自然发现）→ 封底。翻页交互：按钮/点击页缘/键盘 ←→ Space PageDown/Home/End；窗口自适应（fitBook 保 A4 比例）。
 

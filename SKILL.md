@@ -88,6 +88,7 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 导入:      python3 $PY import-file file.md --format markdown
 导出:      python3 $PY export --format timeline --output output.md
 可视化:    python3 ~/.local/share/忆时/scripts/viz/viz.py
+专题之书:  python3 ~/.local/share/忆时/scripts/viz/viz.py --topic "系统运维" --label "openKylin"
 记忆脑图:  python3 ~/.local/share/忆时/scripts/viz/mindmap.py
 统计:      python3 $PY stats
 遗忘:      python3 $PY forget --before "2025-01-01" --auto

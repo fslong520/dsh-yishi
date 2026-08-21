@@ -81,7 +81,7 @@ def _filter_memories(memories, filter_kw, topic=None):
     return out
 
 
-def build(data, out, filter_kw=None, topic=None):
+def build(data, out, filter_kw=None, topic=None, label=None):
     memories = _filter_memories(data.get("memories", []), filter_kw, topic)
     records = []
     for m in memories:
@@ -120,11 +120,17 @@ def build(data, out, filter_kw=None, topic=None):
                     key=lambda r: -(r["freq"] + (1 if r["emotion"] >= 0.7 else 0)))
         topic_samples[t] = [{"c": r["c"], "type": r["type"], "e": r["emotion"], "d": r["date"]} for r in rs[:3]]
 
+    tags = [k.strip() for k in (filter_kw or "").split(",") if k.strip()]
+    if topic:
+        tags.append(topic)
+    if label:
+        tags = [label]
+
     payload = {
         "total": len(records),
         "export_date": data.get("export_date", ""),
         "filter": filter_kw or "",
-        "filterTags": [k.strip() for k in (filter_kw or "").split(",") if k.strip()] + ([topic] if topic else []),
+        "filterTags": tags,
         "type_dist": type_dist, "emo_dist": emo_dist,
         "month_dist": dict(sorted(month_dist.items())),
         "topic_count": topic_count,
@@ -159,6 +165,8 @@ def main():
                     help="按逗号分隔关键词过滤（仅搜 keywords 字段，命中任一即保留）")
     ap.add_argument("--topic", default=None,
                     help="按主题名过滤（如 系统运维/GESP考级/纸焰小说），生成专题记忆之书")
+    ap.add_argument("--label", default=None,
+                    help="封面书题标签（覆盖默认显示的关键词/主题，如 openKylin）")
     args = ap.parse_args()
 
     if args.data:
@@ -168,8 +176,8 @@ def main():
         export_json(tmp)
         data = json.load(open(tmp, encoding="utf-8"))
 
-    payload = build(data, Path(args.output), filter_kw=args.filter, topic=args.topic)
-    tag = f"（主题: {args.topic}）" if args.topic else (f"（筛选: {args.filter}）" if args.filter else "")
+    payload = build(data, Path(args.output), filter_kw=args.filter, topic=args.topic, label=args.label)
+    tag = f"（{args.label}）" if args.label else (f"（主题: {args.topic}）" if args.topic else (f"（筛选: {args.filter}）" if args.filter else ""))
     print(f"✅ 记忆之书已生成: {args.output} {tag}")
     print(f"   共 {payload['total']} 条记忆 · 主题 {len(payload['topic_count'])} 类")
     print(f"   " + " · ".join(f"{k} {v}" for k, v in sorted(payload["topic_count"].items(), key=lambda x: -x[1])))
