@@ -30,20 +30,21 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
      export --format timeline --output /tmp/yishi_export.md
    ```
 
-2. **AI 分析导出内容**——以 AI 原生工具（read/grep）读 `/tmp/yishi_export.md`：
-   - 先**聚类高相关组**：同主题/同关键词/同语义之记忆归一组（如同一提权策略、同一工具修复、同一项目进度）。聚不足，不轻下。
-   - 再**逐条读全该组每条原文**——不凭摘要印象跳扫，漏一字即失责。
+2. **聚类高相关组——用语义检索，非字符串**（2026-08-22 改）：
+   - 以显著记忆为锚，用 `merge --id <锚ID> --threshold 0.68` **向量语义**找出同主题簇预览（dry-run）。语义能识别措辞不同而实同的主题（autostore 字符串去重抓不到）。
+   - 不以导出的文本人工翻找为唯一手段——`merge` 预览为主，导出文件作补充细读。
+   - 逐主题**迭代**：多锚各跑、逐步降阈值/换 `--keyword` 收窄，直到不再现高相关簇（相似度 <0.70 的同主题会漏，须多次 merge）。
 
-3. **一条条 AI 手动合并**（核心，戒批量、戒脚本拼接）：
+3. **一条条 AI 手动合并**（核心，戒批量、戒脚本拼接——`merge` 只做"识簇"，**合并内容必须 AI 手写**）：
    - 每组**只存一条权威合并版**：含【前因】【行为】【后果】三要素（铁律，见 13-retrieval-store），信息须自足——三月后读之犹能独立理解。
    - **消歧矛盾**：同组内互相冲突处，取**最新者正确**（时间戳靠后者为最新认知），旧认知明示淘汰（如"决不可用 sudo"已为"sudo 有密码 xcxw1314、非交互才用 pkexec"所取代）。
    - **舍重**：重复铺垫/旧细节不并入，宁精勿杂。
-   - 存合并版（`--force` 跳过自动去重，阻机械拼接）：
+   - 执行合并（锚 ID 保留、权威版写入、自动删簇内其余）：
      ```bash
      MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
-       store "合并版全文" --type preference --emotion 0.7 --keywords "关键词,consolidated" --force
+       merge --id <锚ID> --content "权威合并版全文" --keywords "关键词,consolidated" --emotion 0.7 --apply
      ```
-   - **删旧条目**：合并版存妥、读回确认后，`delete` 掉该组其余被并入之旧记忆（真正的合并，非追加）。`delete --id <ID>` 一条条删。
+   - 合并后**读回确认**权威版完整、被删簇无遗漏。
 
 4. **清理临时文件**：`rm /tmp/yishi_export.md`
 

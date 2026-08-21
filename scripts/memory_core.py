@@ -915,6 +915,143 @@ def cmd_update(args):
     print(f"记忆已更新: {args.id}")
 
 
+# ========== merge（语义合并） ==========
+def cmd_merge(args):
+    """语义合并：以某条记忆为锚，用向量语义（非字符串）检索出同主题高相关簇，
+    供 AI 逐条人工合并。dry-run 预览 → --content+--apply 真正合并删旧。
+
+    设计（2026-08-22 立）：合并必须靠语义而非字符串。autostore 去重仅在
+    相似度≥90% 机械拼接(旧。新)，措辞稍异即分家，多日累积同主题多条且矛盾。
+    故合并步骤：
+      1) merge --id <主ID>         预览语义相近簇（不走字符串，走向量语义）
+      2) AI 逐条读簇内原文，Judge矛盾、写权威合并版
+      3) merge --id <主ID> --content "权威版" --apply   覆盖主ID并删除簇内其余
+    """
+    client = get_client()
+    mem_col = get_collection(client, "memories")
+    anchor = args.id
+    threshold = args.threshold if args.threshold is not None else 0.70
+
+    # 取锚记忆原文
+    try:
+        old = mem_col.get(ids=[anchor])
+    except Exception:
+        print(f"错误: 未找到记忆 {anchor}")
+        raise SystemExit(1)
+    if not old["ids"]:
+        print(f"错误: 未找到记忆 {anchor}")
+        raise SystemExit(1)
+    anchor_content = old["documents"][0]
+    anchor_meta = old["metadatas"][0] if old["metadatas"] else {}
+
+    # ── 语义检索相似簇（向量路，不用字符串） ──
+    similar_ids = []
+    usable_embed = True
+    try:
+        vq = mem_col.query(query_texts=[anchor_content], n_results=40)
+        # 每个候选的记忆也许与锚文案本身相似；再二次核对语义，
+        # 这里 threshold 由调用方定，通常远低于 autostore 的 0.90
+    except Exception as e:
+        usable_embed = False
+        vq = {"ids": [], "distances": []}
+        print(f"⚠️ 向量检索不可用: {e}")
+
+    if usable_embed:
+        ids_list = vq.get("ids", [])
+        dis_list = vq.get("distances", [])
+        others = []
+        if ids_list and ids_list[0]:
+            for i in range(len(ids_list[0])):
+                mid = ids_list[0][i]
+                if mid == anchor:
+                    continue
+                dist = dis_list[0][i] if dis_list and dis_list[0] else 1.0
+                sem = 1.0 - dist
+                others.append((mid, sem))
+        for mid, sem in others:
+            if sem >= threshold:
+                similar_ids.append((mid, sem))
+
+    # 可选：关键词补充过滤（严格子串，仅限 keywords 字段；secondary）
+    if args.keyword and similar_ids:
+        kw = args.keyword.lower()
+        kept = []
+        for mid, sem in similar_ids:
+            try:
+                g = mem_col.get(ids=[mid])
+                meta = g["metadatas"][0] if g["metadatas"] else {}
+                mkw = (meta.get("keywords", "") or "").lower()
+            except Exception:
+                mkw = ""
+            if kw in mkw:
+                kept.append((mid, sem))
+        similar_ids = kept
+
+    if not similar_ids:
+        if not args.apply:
+            print(f"未发现与 {anchor[:12]} 语义相似度 ≥ {threshold} 的记忆簇")
+        else:
+            print(f"无待删记忆，直接写入权威合并版到 {anchor[:12]}")
+            merged_content = args.content or anchor_content
+            _do_merge_write(mem_col, anchor, merged_content, anchor_meta, args)
+        return
+
+    similar_ids.sort(key=lambda x: -x[1])
+
+    if not args.apply:
+        # 预览
+        print(f"🔍 语义合并预览 —— 锚 {anchor[:12]} 语义相似度 ≥ {threshold} 的记忆簇：")
+        for mid, sem in similar_ids[:20]:
+            try:
+                g = mem_col.get(ids=[mid])
+                tc = (g["documents"][0] or "") if g["documents"] else ""
+                kw = (g["metadatas"][0].get("keywords", "") or "") if g["metadatas"] else ""
+            except Exception:
+                tc, kw = "", ""
+            print(f"  {sem:.0%}  {mid[:12]} | {(kw or '')[:36]} | {tc[:34]}")
+        print(f"\n共 {len(similar_ids)} 条待合并。")
+        print("确认合并：加 --content \"AI 手写权威合并版\" --apply")
+        return
+
+    # ---- apply：写入权威合并版并删除簇内其余 ----
+    if not args.content:
+        print("错误: --apply 须提供 --content（AI 手写权威合并版），否则不合并")
+        raise SystemExit(1)
+
+    merged_content = args.content
+    for mid, sem in similar_ids:
+        try:
+            mem_col.delete(ids=[mid])
+            print(f"  ✗ 已删 {mid[:12]}（相似 {sem:.0%}）")
+        except Exception:
+            pass
+    _do_merge_write(mem_col, anchor, merged_content, anchor_meta, args)
+    merged = len(similar_ids) + 1
+    print(f"✅ 语义合并完成：{merged} 条并入的权威版存于 {anchor[:12]}")
+
+
+def _do_merge_write(mem_col, mid, content, meta, args):
+    """写权威合并版到锚 ID，保留/增强元数据。"""
+    nm = dict(meta) if meta else {}
+    nm["content"] = content
+    nm["updated_at"] = _now().isoformat()
+    if args.keywords:
+        nm["keywords"] = _merge_keywords(meta.get("keywords", ""), args.keywords)
+    if args.emotion is not None:
+        emo = norm_emotion(args.emotion)
+        nm["emotion"] = emo
+        nm["emotion_weight"] = emo
+    if args.type:
+        nm["type"] = args.type
+    # consolidated 标签，标示此为合并产物
+    kw = nm.get("keywords", "") or ""
+    if "consolidated" not in kw:
+        nm["keywords"] = (kw + ",consolidated").strip(",")
+    mem_col.update(ids=[mid], documents=[content], metadatas=[nm])
+    _append_backup(mid, content, nm)
+    print(f"  ✓ 权威合并版已写 {mid[:12]}")
+
+
 # ========== delete ==========
 def cmd_delete(args):
     client = get_client()
@@ -1355,6 +1492,18 @@ def main():
     p = sub.add_parser("delete", help="删除记忆")
     p.add_argument("--id", required=True, help="记忆ID")
     p.set_defaults(func=cmd_delete)
+
+    p = sub.add_parser("merge", help="语义合并高相关记忆（预览→apply）")
+    p.add_argument("--id", required=True, help="锚定记忆ID（合并后保留此ID，写入权威版）")
+    p.add_argument("--threshold", type=float, default=0.70,
+                   help="语义相似度阈值（默认0.70，按向量语义，非字符串）")
+    p.add_argument("--keyword", default=None, help="可选：额外按 keywords 字段过滤簇")
+    p.add_argument("--content", default=None, help="AI 手写权威合并版（仅 apply 时必填）")
+    p.add_argument("--apply", action="store_true", help="真正合并删旧；不加则为 dry-run 预览")
+    p.add_argument("--keywords", default=None, help="合并后 keywords 覆盖/合并")
+    p.add_argument("--emotion", default=None, help="合并后情绪")
+    p.add_argument("--type", default=None, help="合并后类型")
+    p.set_defaults(func=cmd_merge)
 
     p = sub.add_parser("stats", help="统计信息"); p.set_defaults(func=cmd_stats)
 

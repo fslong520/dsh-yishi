@@ -118,6 +118,21 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 ```
 **title 字段**：store 自动生成（`make_title` 取内容首段，≤10 字）供图谱节点标签。可不传，自动即够；特殊情形可 `--title` 覆盖。
 
+**语义合并命令（merge，2026-08-22 立）：** 梳理时高相关记忆**靠语义检索合并，非字符串**。autostore 去重仅在相似≥90% 机械拼接内容（`旧。新`），措辞稍异即分家致同主题多条矛盾——故梳理须用 `merge` 语义识簇、AI 手写权威版、删旧。
+```bash
+# ① 预览：以某条记忆为锚，向量语义找出相似≥阈值的簇（dry-run，不删）
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+  merge --id <锚ID> --threshold 0.68 [--keyword "过滤词"]   # keyword 按候选 keywords 字段收窄
+
+# ② AI 逐条读簇内原文，写权威合并版（前因/行为/后果）
+# ③ 真正合并删旧：--content 必须为 AI 手写权威版
+MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+  merge --id <锚ID> --content "权威合并版全文" --keywords "新关键字" --emotion 0.6 --apply
+```
+- 锚 ID 保留，权威版写入该 ID 加 `consolidated` 标签；簇内其余逐条 delete。
+- **迭代收敛**：同一主题多锚各跑一次、逐步降阈值/换关键词语，直到不再出现高相关簇为止（相似度 <0.70 的同主题会漏，须多次 merge）。
+- 违背**合并铁律**（逐条 AI 手动、消歧、删旧）者判不合格。
+
 **类型**：task / decision / preference / emotion / time / context / skill
 **情绪**：0.0~1.0 数值（默认 0.5），数值越大越重要/强烈；旧词 high=0.8 / medium=0.5 / low=0.2 仍兼容（自动转数值）
 **场景与活动时间**：`--scene` 归组（如"教学课后反馈"），`--activity-start/--activity-end` 记段段时间（如旅行 2025-05-01 ~ 05-10）。事件性记忆（time 类型）建议标注。
