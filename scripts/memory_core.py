@@ -111,6 +111,7 @@ RRF_K = 60.0                # RRF 融合常数（标准值 60）
 BM25_K1 = 1.5               # BM25 词频饱和参数
 BM25_B = 0.75               # BM25 文档长度归一参数
 BM25_SEM_CAP = 0.7          # BM25 归一化分封顶：关键词命中 ≠ 语义相关，防虚高顶榜
+RECALL_SIM_MIN = 0.70       # 检索过滤：向量语义相似度低于此值者不看（2026-08-22 哥哥定）
 MERGE_SIM_CLUSTER = 0.70    # 有机合并：语义相似度≥此值，存时检索候选供 AI 决策
 MERGE_SHOW_MAX = 3          # 存时打印候选最多条数（最相关 N 条）
 BM25_KEYWORD_WEIGHT = 2     # keywords 分词重复次数（权重×2）
@@ -512,7 +513,7 @@ def cmd_store(args):
     cluster = []
     if not getattr(args, "force", False):
         try:
-            cq = mem_col.query(query_texts=[args.content], n_results=12)
+            cq = mem_col.query(query_texts=[args.content], n_results=3)
             if cq["ids"] and cq["ids"][0]:
                 for j in range(len(cq["ids"][0])):
                     mid = cq["ids"][0][j]
@@ -570,7 +571,7 @@ def cmd_store(args):
     # 关键词各自保留，不做跨记忆融合（避免关键词雪球式膨胀）
     try:
         rel_col = get_collection(client, "relationships")
-        similar = mem_col.query(query_texts=[args.content], n_results=6)
+        similar = mem_col.query(query_texts=[args.content], n_results=3)
         if similar["ids"] and similar["ids"][0]:
             for j in range(len(similar["ids"][0])):
                 sid = similar["ids"][0][j]
@@ -578,7 +579,7 @@ def cmd_store(args):
                     continue
                 sdist = similar["distances"][0][j] if similar["distances"] else 1.0
                 ssem = 1.0 - sdist
-                if ssem > 0.50:
+                if ssem >= MERGE_SIM_CLUSTER:
                     rel_col.add(
                         documents=[f"{mem_id}->{sid}"],
                         metadatas=[{"source": mem_id, "target": sid, "score": round(ssem, 3)}],
@@ -661,6 +662,9 @@ def cmd_recall(args):
             continue
         seen.add(mid)
         doc, meta = pool[mid]
+        # 语义相似度 < 0.70 者不睹（仅向量路有此分，BM25 独有者不过滤）
+        if mid in vec_semantic and vec_semantic[mid] < RECALL_SIM_MIN:
+            continue
         semantic = max(vec_semantic.get(mid, 0.0), bm25_semantic.get(mid, 0.0) * BM25_SEM_CAP)
         em_w = float(meta.get("emotion_weight", 0.5))
         recall_count = int(meta.get("recall_count", 0))
