@@ -26,11 +26,13 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
 .tbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .tbtn:hover{background:#313244;border-color:var(--hl)}
 #hint{position:absolute;right:16px;bottom:16px;z-index:20;font-size:11px;color:var(--muted);text-align:right;line-height:1.8;background:rgba(24,24,37,.8);padding:8px 12px;border-radius:8px;border:1px solid var(--border);pointer-events:none}
-#nodeinfo{position:absolute;left:16px;top:16px;z-index:20;font-size:12px;background:var(--panel);border:1px solid var(--hl);border-radius:10px;padding:12px 14px;max-width:360px;display:none;box-shadow:0 10px 30px rgba(0,0,0,.4);line-height:1.6}
-#nodeinfo .nh{font-weight:700;font-size:13px;margin-bottom:3px}
+#nodeinfo{position:absolute;right:22px;top:60px;bottom:70px;width:340px;z-index:20;font-size:12px;background:var(--panel);border:1px solid var(--hl);border-radius:10px;padding:14px 16px;display:none;box-shadow:0 12px 32px rgba(0,0,0,.5);line-height:1.6;flex-direction:column;pointer-events:auto}
+#nodeinfo .nh{font-weight:700;font-size:13px;margin-bottom:3px;padding-right:24px}
 #nodeinfo .nm{font-size:11px;color:var(--muted);margin-bottom:4px}
-#nodeinfo .nb{color:var(--text);font-size:12px;max-height:180px;overflow-y:auto}
-#nodeinfo #nbtn{margin-top:8px;background:#2EC4B6;border:none;color:#0b1220;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600}
+#nodeinfo .nb{color:var(--text);font-size:12px;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;white-space:pre-wrap;word-break:break-word}
+#nodeinfo #nbtn{margin-top:10px;background:#2EC4B6;border:none;color:#0b1220;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600;align-self:flex-start}
+#nodeinfo .nclose{position:absolute;right:10px;top:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px;line-height:1;border-radius:6px}
+#nodeinfo .nclose:hover{color:#fff;background:#313244}
 #tooltip{position:absolute;pointer-events:none;z-index:30;display:none;max-width:320px;background:rgba(24,24,37,.96);border:1px solid var(--border);border-left:3px solid var(--hl);border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.5;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.45)}
 #tooltip .tt{font-weight:700;font-size:12px;margin-bottom:2px;color:#fff}
 #tooltip .tm{font-size:10px;color:var(--muted);margin-bottom:4px}
@@ -59,7 +61,7 @@ body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background
     </div>
     <div id="tooltip"><div class="tt"></div><div class="tm"></div><div class="tb"></div></div>
     <div id="hint">拖动节点 · 滚轮缩放<br>点击节点：高亮邻接·看详情<br>悬停节点：预览完整内容</div>
-    <div id="nodeinfo"><div class="nh"></div><div class="nm"></div><div class="nb"></div><button id="nbtn">关闭高亮</button></div>
+    <div id="nodeinfo"><button class="nclose" id="nclose">✕</button><div class="nh"></div><div class="nm"></div><div class="nb"></div><button id="nbtn">关闭高亮</button></div>
     <div id="statbar"></div>
   </div>
 </div>
@@ -230,7 +232,7 @@ canvas.addEventListener('mousedown', function(e){
           if(seen[nb]===undefined){ seen[nb]=seen[cur]+1; linksUnder.add(nb); q.push(nb); }
         });
       }
-      showNodeInfo(n, e.clientX, e.clientY);
+      showNodeInfo(n);
     }
     // 绑定拖拽
     var dragObj = { x:e.offsetXConvert||n.x, y:n.y };
@@ -309,7 +311,7 @@ document.getElementById('nbtn').addEventListener('click', function(){
 });
 
 // ---------- 节点详情 ----------
-function showNodeInfo(n, cx, cy){
+function showNodeInfo(n){
   var info=document.getElementById('nodeinfo');
   info.querySelector('.nh').textContent=(typeEmoji[n.type]||'')+' '+(n.title||n.label||'');
   var meta=[];
@@ -320,19 +322,23 @@ function showNodeInfo(n, cx, cy){
   if(degree[n.id]!=null) meta.push('关联 '+degree[n.id]);
   if(n.date) meta.push(n.date);
   info.querySelector('.nm').textContent=meta.join(' · ');
-  info.querySelector('.nb').textContent=n.full || n.label || '';
-  // 悬浮窗靠近点击处（避免遮挡太大/越界）
-  if(cx!=null && cy!=null){
-    var w = info.offsetWidth || 320, h = info.offsetHeight || 200;
-    var rect = document.getElementById('mapwrap').getBoundingClientRect();
-    var lx = cx + 14, ly = cy + 14;
-    if(lx + w > rect.width) lx = cx - w - 14;
-    if(ly + h > rect.height) ly = cy - h - 14;
-    info.style.left = (lx - rect.left) + 'px';
-    info.style.top = (ly - rect.top) + 'px';
+  var body = n.full || n.label || '';
+  // 簇节点：附成分记忆清单
+  if(n.members && n.members.length){
+    body += '\n\n──────── 合并成分 ────────\n' + n.members.map(function(m,i){
+      return (i+1)+'. '+(m.title||'')+'　['+(m.date||'')+']';
+    }).join('\n');
   }
-  info.style.display='block';
+  info.querySelector('.nb').textContent = body;
+  info.querySelector('.nb').scrollTop = 0;
+  info.style.display='flex';
 }
+document.getElementById('nclose').addEventListener('click', function(){
+  activeNodeId=null; linksUnder=new Set(); document.getElementById('nodeinfo').style.display='none'; render();
+});
+document.getElementById('nbtn').addEventListener('click', function(){
+  activeNodeId=null; linksUnder=new Set(); document.getElementById('nodeinfo').style.display='none'; render();
+});
 
 // ---------- 统计 ----------
 function updateStat(){

@@ -117,25 +117,8 @@ def build_mindmap(data, out):
     # 读取语义关系（relationships 集合），构建网状图
     links = _load_relationships(records)
 
-    # 节点：按记忆构建，id 为记忆 id
-    nodes = []
-    for r in records:
-        nodes.append({
-            "id": r["id"],
-            "title": r["title"],          # 节点简洁标题
-            "label": r["c"],              # 摘要（60字）
-            "full": r.get("_full", ""),   # 完整内容（悬停显示）
-            "type": r["type"],
-            "type_name": TYPE_NAMES.get(r["type"], r["type"]),
-            "type_emoji": TYPE_EMOJIS.get(r["type"], ""),
-            "emotion": r["emotion"],
-            "date": r["date"],
-            "keywords": r["keywords"],
-            "recall": r["recall"],
-            "freq": r["freq"],            # 频次（节点大小参与因素）
-            "content_len": r["content_len"],  # 内容长度（节点大小参与因素）
-            "color": TYPE_COLORS.get(r["type"], "#89b4fa"),
-        })
+    # 相似度关系很密的记忆合并为一个集群节点（union-find，score 阈值）
+    nodes, links = _merge_similar(records, links)
 
     payload = {
         "graph": {"nodes": nodes, "links": links},
@@ -191,6 +174,115 @@ def _load_relationships(records):
     except Exception as e:
         print(f"  ⚠️ 读取关系失败（退化为无连线）: {e}")
     return links
+
+
+# 相似合并阈值：score ≥ 此值视为"关系很密"，并为一簇
+MERGE_SCORE = 0.82
+
+
+def _record_to_node(r):
+    return {
+        "id": r["id"],
+        "title": r["title"],
+        "label": r["c"],
+        "full": r.get("_full", ""),
+        "type": r["type"],
+        "type_name": TYPE_NAMES.get(r["type"], r["type"]),
+        "type_emoji": TYPE_EMOJIS.get(r["type"], ""),
+        "emotion": r["emotion"],
+        "date": r["date"],
+        "keywords": r["keywords"],
+        "recall": r["recall"],
+        "freq": r["freq"],
+        "content_len": r["content_len"],
+        "color": TYPE_COLORS.get(r["type"], "#89b4fa"),
+        "members": None,
+    }
+
+
+def _merge_similar(records, links):
+    """把相似度关系很密（score≥MERGE_SCORE）的记忆并为一个节点。
+
+    - union-find 对 score≥阈值 的边做连通分量
+    - 每簇（>1 成员）合并为一个 super-node：标题取最中心记忆，
+      内容拼全部成员，容量/频次取和，类型取多数。
+    - 孤立记忆仍是单节点
+    返回 (nodes, links)。links 的 source/target 由记忆 id 映射到节点的可见 id。
+    """
+    rmap = {r["id"]: r for r in records}
+
+    # union-find
+    parent = {}
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for l in links:
+        if l["score"] >= MERGE_SCORE:
+            union(l["source"], l["target"])
+
+    # 按根聚合成员
+    clusters = {}
+    for rid in rmap:
+        clusters.setdefault(find(rid), []).append(rid)
+    cluster_key = {}
+    for idx, (root, members) in enumerate(clusters.items()):
+        if len(members) == 1:
+            cluster_key[members[0]] = members[0]
+        else:
+            cid = f"cluster_{idx}_{root[:8]}"
+            cluster_key[root] = cid
+            for m in members:
+                cluster_key[m] = cid
+
+    # 构建节点（cluster 的 leader 放第一个）
+    nodes = []
+    for root, members in clusters.items():
+        cid = cluster_key[root]
+        if len(members) == 1:
+            nodes.append(_record_to_node(rmap[members[0]]))
+        else:
+            recs = [rmap[m] for m in members]
+            # 选最中心：入边最多者
+            center = max(recs, key=lambda r: neighbor_count(links, r["id"]))
+            merged = _record_to_node(center)
+            merged["id"] = cid
+            merged["title"] = f"{center['title']}（{len(members)}条相似）"
+            merged["full"] = "\n…\n".join(r.get("_full", "") for r in recs)
+            merged["freq"] = sum(r["freq"] for r in recs)
+            merged["content_len"] = sum(r["content_len"] for r in recs)
+            merged["recall"] = sum(r["recall"] for r in recs)
+            merged["members"] = [
+                {k: m.get(k) for k in ("title", "date", "keywords", "freq")}
+                for m in recs
+            ]
+            nodes.append(merged)
+
+    # 链接新旧映射
+    new_links = []
+    seen = set()
+    for l in links:
+        a, b = cluster_key[l["source"]], cluster_key[l["target"]]
+        if a != b and (a, b) not in seen and (b, a) not in seen:
+            seen.add((a, b))
+            new_links.append({"source": a, "target": b, "score": l["score"]})
+    return nodes, new_links
+
+
+def neighbor_count(links, nid):
+    c = 0
+    for l in links:
+        if l["source"] == nid or l["target"] == nid:
+            c += 1
+    return c
+
 
 def open_in_browser(path):
     if sys.platform == "darwin":
