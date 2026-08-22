@@ -525,8 +525,9 @@ def cmd_store(args):
         except Exception:
             cluster = []
 
-    # AI 决策：合并（--merge-ids）→ 删指定旧记忆，存综合合并版为新条目
-    if getattr(args, "merge_ids", None):
+    # AI 决策：合并（--merge-ids）→ 删指定旧记忆（可 0 条=空串），存合并版为新条目
+    # 统一路径：选 N 条（0~N）→ 删 N 条 → 并（所选旧内容+新内容，AI 手写综合版）
+    if args.merge_ids is not None:
         ids_to_merge = [i.strip() for i in args.merge_ids.split(",") if i.strip()]
         dropped = 0
         for mid in ids_to_merge:
@@ -535,18 +536,19 @@ def cmd_store(args):
                 dropped += 1
             except Exception:
                 pass
-        # 综合合并版作为新条目存储
+        # 综合版作为新条目存储（选 0 条时=新内容原样存）
         new_mid = str(uuid.uuid4())
         mem_col.add(documents=[args.content], metadatas=[metadata], ids=[new_mid])
         _update_meta_total(client, "total_memories", 1)
         _append_backup(new_mid, args.content, metadata)
-        print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
+        if dropped:
+            print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
+        else:
+            print(f"✅ 机械存储（选 0 条合并，--merge-ids 为空）：已存为新条目")
         return new_mid
 
     # 有候选 → 先判后存：挂起不落库，打印候选（内容全量，最多 3 条最相关），等 AI 决策
-    # 脚本不代决：不自动合并、不自动拼接；仅提示。AI 读候选后须二选一：
-    #   ① 能合并 → store "综合版" --merge-ids "id1,id2"（删旧存新）
-    #   ② 不能合并 → store --force 机械存储
+    # 脚本不代决：仅提示。AI 读候选后统一走 --merge-ids（N 可 0=空串）
     if cluster and not getattr(args, "force", False):
         cluster.sort(key=lambda x: -x[1])
         shown = cluster[:MERGE_SHOW_MAX]
@@ -561,12 +563,12 @@ def cmd_store(args):
                 oc, ok, od = "", "", ""
             print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
             print(f"  {oc}")
-        print(f"\n  ⚠️ 先判后存：本次未写入。三步决策：")
-        print(f"   ① 选：从上述候选中选出值得合并者（可 0 条）")
-        print(f"   ② 删：所选者随 --merge-ids 删除（逗号分隔多条，一次并净）")
-        print(f"   ③ 并：综合版=所选旧内容+新内容，AI 手写合并后存入")
-        print(f"   → 选 0 条：store \"<完整内容>\" --force（机械存储）")
-        print(f"   → 选 N 条：store \"<综合合并版>\" --merge-ids \"ID1,ID2,...\"（删旧存新）")
+        print(f"\n  ⚠️ 先判后存：本次未写入。统一路径：")
+        print(f"   ① 选：从候选中选出值得合并者（可 0 条）")
+        print(f"   ② 删：选 N 条 → --merge-ids \"ID1,ID2,...\"；选 0 条 → --merge-ids \"\"（空串）")
+        print(f"   ③ 并：综合版=所选旧内容+新内容，AI 手写合并后存入（选 0 条=新内容原样存）")
+        print(f"   示例：store \"<综合合并版>\" --merge-ids \"ID1,ID2\"（选2条）")
+        print(f"   示例：store \"<新内容>\" --merge-ids \"\"（选0条）")
         return None
 
     mem_id = str(uuid.uuid4())
