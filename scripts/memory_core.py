@@ -561,10 +561,12 @@ def cmd_store(args):
                 oc, ok, od = "", "", ""
             print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
             print(f"  {oc}")
-        print(f"\n  ⚠️ 先判后存：本次未写入，请 AI 读候选判定后重存：")
-        print(f"   ① 能综合合并 → store \"综合合并版\" --merge-ids \"ID1,ID2,...\"（凡同主题候选**全部**纳入，逗号分隔多条；删旧存新）")
-        print(f"   ② 不能合并 → store \"<完整内容>\" --force（机械存储）")
-        print(f"   ⚠️ 若多条候选同主题，务必一次性全部纳入 --merge-ids，勿只并一条留碎片")
+        print(f"\n  ⚠️ 先判后存：本次未写入。三步决策：")
+        print(f"   ① 选：从上述候选中选出值得合并者（可 0 条）")
+        print(f"   ② 删：所选者随 --merge-ids 删除（逗号分隔多条，一次并净）")
+        print(f"   ③ 并：综合版=所选旧内容+新内容，AI 手写合并后存入")
+        print(f"   → 选 0 条：store \"<完整内容>\" --force（机械存储）")
+        print(f"   → 选 N 条：store \"<综合合并版>\" --merge-ids \"ID1,ID2,...\"（删旧存新）")
         return None
 
     mem_id = str(uuid.uuid4())
