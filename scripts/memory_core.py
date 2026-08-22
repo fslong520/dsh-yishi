@@ -543,8 +543,10 @@ def cmd_store(args):
         print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
         return new_mid
 
-    # 有候选 → 打印候选提示（内容全量，最多 3 条最相关）供 AI 决策参考
-    # 脚本不决策：无论候选与否皆照常存储；合并与否由 AI 按 prompt 用 --merge-ids/--force 安排
+    # 有候选 → 先判后存：挂起不落库，打印候选（内容全量，最多 3 条最相关），等 AI 决策
+    # 脚本不代决：不自动合并、不自动拼接；仅提示。AI 读候选后须二选一：
+    #   ① 能合并 → store "综合版" --merge-ids "id1,id2"（删旧存新）
+    #   ② 不能合并 → store --force 机械存储
     if cluster and not getattr(args, "force", False):
         cluster.sort(key=lambda x: -x[1])
         shown = cluster[:MERGE_SHOW_MAX]
@@ -559,8 +561,10 @@ def cmd_store(args):
                 oc, ok, od = "", "", ""
             print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
             print(f"  {oc}")
-        print(f"\n  → 参考：能综合合并 → store \"综合合并版\" --merge-ids \"{shown[0][0]},...\"（删旧存新）")
-        print(f"  → 不能合并 → 本次机械存储已执行（决策在 AI，脚本不代决）")
+        print(f"\n  ⚠️ 先判后存：本次未写入，请 AI 读候选判定后重存：")
+        print(f"   ① 能综合合并 → store \"综合合并版\" --merge-ids \"{shown[0][0]},...\"（删旧存新）")
+        print(f"   ② 不能合并 → store \"<完整内容>\" --force（机械存储）")
+        return None
 
     mem_id = str(uuid.uuid4())
     mem_col.add(documents=[args.content], metadatas=[metadata], ids=[mem_id])
@@ -895,6 +899,11 @@ def cmd_recall(args):
             b = item.get("activity_end", "") or "?"
             activity = f" (活动时间: {a} ~ {b})" if item.get("activity_start") and item.get("activity_end") else f" (活动时间: {a or b})"
         print(f"     │ 📝 {content}{activity}")
+
+        # 判定模式（--judge）：值必存第一段用——供 AI 判本内容与旧忆是否同主题
+        if getattr(args, "judge", False):
+            print(f"     │ 🔍 判定维度：相似度{score_pct}% | 类型{item['type']} | 创建{item['created_date']} | 检索{item['recall_count']}次")
+            print(f"     │   判同主题？→ 是(可合并，--merge-ids 删旧存新) | 否(机械存储，--force)")
         print()
 
 
@@ -1491,6 +1500,7 @@ def main():
     p.add_argument("--no-embed", action="store_true", help="仅 BM25 关键词检索（快速，不加载 embedding）")
     p.add_argument("--max-chars-per-item", type=int, default=0, help="单条注入字符上限（0=不限）")
     p.add_argument("--max-total-chars", type=int, default=0, help="总注入字符预算（0=不限）")
+    p.add_argument("--judge", action="store_true", help="判定模式：输出每条全文+相似度+类型+关键词+创建日，供 AI 判同主题（值必存第一段用）")
     p.set_defaults(func=cmd_recall)
 
     p = sub.add_parser("update", help="更新记忆")
