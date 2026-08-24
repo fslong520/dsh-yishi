@@ -502,7 +502,8 @@ def cmd_store(args):
         metadata["keywords"] = args.keywords
     # 传播 --skill-* 参数到 metadata
     for key in ("skill_name", "skill_summary", "skill_strategy", "skill_avoid",
-                 "skill_triggers", "skill_input", "skill_output", "skill_version"):
+                 "skill_triggers", "skill_input", "skill_output", "skill_version",
+                 "skill_path"):
         val = getattr(args, key.replace("-", "_"), None)
         if val is not None:
             metadata[key] = val
@@ -922,9 +923,11 @@ def cmd_recall(args):
                     _inp = _smd.get("skill_input", "") or ""
                     _out = _smd.get("skill_output", "") or ""
                     _ver = _smd.get("skill_version", "") or ""
+                    _pa = _smd.get("skill_path", "") or ""
                     if _sn: print(f"     │ 🎯 技能: {_sn}" + (f" v{_ver}" if _ver else ""))
                     if _ss: print(f"     │ 📌 概括: {_ss}")
                     if _tri: print(f"     │ ⚡ 触发: {_tri}")
+                    if _pa: print(f"     │ 📍 路径: {_pa}")
                     if _st: print(f"     │ 🛠 步骤: {_st}")
                     if _inp: print(f"     │ 📥 输入: {_inp}")
                     if _out: print(f"     │ 📤 输出: {_out}")
@@ -1521,6 +1524,7 @@ def main():
     p.add_argument("--skill-input", help="技能输入")
     p.add_argument("--skill-output", help="技能输出")
     p.add_argument("--skill-version", default="1.0.0", help="技能版本")
+    p.add_argument("--skill-path", help="技能可执行路径/调用方式（如 python3 /path/to/tool，缺此 AI 无法定位工具）")
     p.set_defaults(func=cmd_store)
 
     p = sub.add_parser("recall", help="检索记忆")

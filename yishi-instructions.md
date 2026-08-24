@@ -62,8 +62,9 @@
    · 收到任务/需求/问题 → recall "<任务关键词>" --type-filter skill，查有无已学会之技能
    · 命中（type=skill 且含技能卡）→ **按技能名称/概括/步骤/输入输出执行**，不得绕过
    · 未命中 → 按常规处理，任务完成后再判断是否需 store 为技能（供下次复用）
-   · 技能经 store --type skill --skill-name "..." --skill-summary "..." --skill-strategy "..." --skill-triggers "触发词1,触发词2" 存入
-   （技能为结构化记忆，含步骤/触发/输入输出——遇同类任务按技能执行，勿重复发明轮子）
+   · 技能经 store --type skill --skill-name "..." --skill-summary "..." --skill-path "可执行路径/调用方式" --skill-strategy "步骤" --skill-triggers "触发词1,触发词2" 存入
+     （⚠️ --skill-path 必填：无路径 AI 无法定位工具，技能形同虚设）
+   （技能为结构化记忆，含路径/步骤/触发/输入输出——遇同类任务按技能执行，勿重复发明轮子）
 ```
 
 **任何一次回复，只要未实际调用过 recall，即判为未守约束，等同违规。**
