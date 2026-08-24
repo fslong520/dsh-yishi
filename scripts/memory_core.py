@@ -947,6 +947,35 @@ def cmd_recall(args):
             activity = f" (活动时间: {a} ~ {b})" if item.get("activity_start") and item.get("activity_end") else f" (活动时间: {a or b})"
         print(f"     │ 📝 {content}{activity}")
 
+        # 层级+热度提示（heap 决策依据，供 AI 判断是否 promote/demote）
+        try:
+            _lm = mem_col.get(ids=[item["id"]])["metadatas"]
+            if _lm and _lm[0] is not None:
+                _lmd = _lm[0]
+                _pid = _lmd.get("parent_id", "") or ""
+                _fc = _lmd.get("first_child", "") or ""
+                _rc = int(_lmd.get("recall_count", 0) or 0)
+                _depth = 0
+                _tmp = _pid
+                for _ in range(30):
+                    if not _tmp:
+                        break
+                    _pm = mem_col.get(ids=[_tmp])["metadatas"]
+                    if not _pm or _pm[0] is None:
+                        break
+                    _tmp = _pm[0].get("parent_id", "") or ""
+                    _depth += 1
+                _role = "🌿根" if not _pid else ("🍃叶" if not _fc else "🌲枝")
+                _hint = ""
+                if _role != "🌿根" and _rc >= 5:
+                    _hint = " 🔥热记忆沉在深层，AI 可考虑 promote 上浮"
+                elif _role == "🌿根" and _rc < 2 and _fc:
+                    _hint = " ❄️根节点少被检索，AI 可考虑 demote 下沉（--parent 指定新父）"
+                if _role != "🌿根" or _fc or _hint:
+                    print(f"     │ 🏔 层级: {_role} 深度{_depth} 子树{'有' if _fc else '无'} 检索{_rc}次{_hint}")
+        except Exception:
+            pass
+
         # 技能卡：type=skill 时展示结构化字段，供 AI 直接按技能执行
         if item.get("type") == "skill":
             try:
