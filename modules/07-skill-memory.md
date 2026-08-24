@@ -42,7 +42,7 @@
 
 **存储命令：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI store "Strategy/Language/Example" \
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI store "Strategy/Language/Example" \
   --type skill \
   --emotion 0.8 \
   --keywords "skill,格语,trigger:漫画,trigger:画漫画" \

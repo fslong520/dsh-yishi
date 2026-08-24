@@ -6,7 +6,7 @@
 
 **命令构造：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/viz.py
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/viz/viz.py
 ```
 
 **参数：**
@@ -39,9 +39,9 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/vi
 
 ```bash
 # ① 取素材（AI 消费）
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/profile.py
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/viz/profile.py
 # ② 注入画像正文，生成页面
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/profile.py \
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/viz/profile.py \
   --content 画像正文.html --out ~/Desktop/哥哥人物画像.html --open
 ```
 
@@ -90,7 +90,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/pr
 
 **命令构造：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/mindmap.py
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/viz/mindmap.py
 ```
 
 **参数：**

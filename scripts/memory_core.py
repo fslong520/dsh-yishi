@@ -56,10 +56,10 @@ def _silent_import():
 with _silent_import():
     import chromadb
 
-# 模型和数据统一存到 ~/.local/share/忆时/ 下（忆时专属目录，2026-08-19 迁自
-# ~/.local/share/opencode/忆时/），不放在技能目录（更新技能会覆盖），也不放在
-# ~/.cache/（清缓存会被删除）。opencode 与 DSH 双栖共用此目录。
-LOCAL_BASE = os.path.join(Path.home(), ".local", "share", "忆时")
+# 模型和数据统一存到 ~/.local/share/yishi/ 下（全英文目录，跨平台统一，避免中文路径乱码；
+# 2026-08-19 迁自 ~/.local/share/opencode/忆时/），不放在技能目录（更新技能会覆盖），
+# 也不放在 ~/.cache/（清缓存会被删除）。opencode 与 DSH 双栖共用此目录。
+LOCAL_BASE = os.path.join(Path.home(), ".local", "share", "yishi")
 
 DATA_DIR = os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or os.path.join(LOCAL_BASE, "data")
 

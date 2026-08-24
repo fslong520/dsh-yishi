@@ -8,8 +8,9 @@
 
 ```text
 0【先定义路径】（设一次，本会话永久可用）
-   export MEMO_DIR=~/.local/share/忆时/data
-   YISHI=~/.local/share/忆时/scripts/memory_core.py
+   export MEMO_DIR=~/.local/share/yishi/data
+   YISHI=~/.local/share/yishi/scripts/memory_core.py
+   （Windows：MEMO_DIR=%USERPROFILE%\.local\share\yishi\data，YISHI=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py）
 
 1【言必检】调用工具：
    python3 $YISHI recall "<用户刚才的话>"
@@ -103,7 +104,7 @@
 
 为保跨机器可移植，忆时路径统一用 `~` 展开：
 ```bash
-LOCAL_BASE=~/.local/share/忆时
+LOCAL_BASE=~/.local/share/yishi
 YISHI=$LOCAL_BASE/scripts/memory_core.py
 VIZ=$LOCAL_BASE/scripts/viz/viz.py
 MEMO_DIR=$LOCAL_BASE/data
@@ -120,13 +121,13 @@ MEMO_DIR=$LOCAL_BASE/data
 
 ```bash
 # Linux/macOS
-python3 ~/.local/share/忆时/scripts/models-install.py
+python3 ~/.local/share/yishi/scripts/models-install.py
 # Windows
-python %USERPROFILE%\.local\share\忆时\scripts\models-install.py
+python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
 # 插件目录内亦可：pnpm models:install
 ```
 
-模型落 `~/.local/share/忆时/models/bge-base-zh-v1.5/`（onnx/model.onnx 大于 100MB 判为完整，重复运行幂等跳过）。**未安装则 embedding 检索（recall/store 语义检索）不可用**——报错即提示安装命令，勿忽略。
+模型落 `~/.local/share/yishi/models/bge-base-zh-v1.5/`（onnx/model.onnx 大于 100MB 判为完整，重复运行幂等跳过）。**未安装则 embedding 检索（recall/store 语义检索）不可用**——报错即提示安装命令，勿忽略。
 
 ### 启始三检（每会话必行）
 
@@ -209,8 +210,8 @@ store 执行后，立即 `recall "忆关键词" --limit 1` 核实已存。不核
 
 ```bash
 # 首行设变量（shell 持久，设一次即可）
-LOCAL_BASE=~/.local/share/忆时; YISHI=$LOCAL_BASE/scripts/memory_core.py; MEMO_DIR=$LOCAL_BASE/data
-# Windows 用 %USERPROFILE%\.local\share\忆时 替 ~/.local/share/忆时，python 替 python3
+LOCAL_BASE=~/.local/share/yishi; YISHI=$LOCAL_BASE/scripts/memory_core.py; MEMO_DIR=$LOCAL_BASE/data
+# Windows（目录统一英文 yishi）：%USERPROFILE%\.local\share\yishi 替 ~/.local/share/yishi，python 替 python3
 
 # store：内容为【位置参数放最后】（勿用 --content/--tags，此二参数不存在），关键字用 --keywords
 # 记忆自动生成 ≤10 字 title 供图谱节点标签，必要时可 --title "短标题" 覆盖

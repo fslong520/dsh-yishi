@@ -10,14 +10,14 @@
 
 以特殊记忆追踪末次梳理时间。每次对话启始，先查：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py \
   recall "记忆梳理" --type-filter time --limit 1 --min-weight 0.1
 ```
 - **返回末次梳理时间**：有结果则告知用户"上次梳理于 XXXX-XX-XX"；无结果则言"尚无梳理记录"。
 - 若无结果，或末次梳理距今超过 7 日 → 触发梳理流程。
 - 梳理毕，以 `--type time --emotion 0.5 --keywords "记忆梳理,consolidation"` 存储新时间戳：
   ```bash
-  MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+  MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py \
     store "上次记忆梳理时间: YYYY-MM-DD" --type time --emotion 0.5 --keywords "记忆梳理,consolidation"
   ```
 - 梳理完成，告知用户"梳理完毕，上次梳理时间已更新"。
@@ -26,7 +26,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 
 1. **导出所有记忆**
    ```bash
-   MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+   MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py \
      export --format timeline --output /tmp/yishi_export.md
    ```
 
@@ -41,7 +41,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
    - **舍重**：重复铺垫/旧细节不并入，宁精勿杂。
    - 执行合并（锚 ID 保留、权威版写入、自动删簇内其余）：
      ```bash
-     MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+     MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py \
        merge --id <锚ID> --content "权威合并版全文" --keywords "关键词,consolidated" --emotion 0.7 --apply
      ```
    - 合并后**读回确认**权威版完整、被删簇无遗漏。

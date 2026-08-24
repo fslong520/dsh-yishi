@@ -76,9 +76,10 @@ metadata:
 ## 核心命令
 
 ```bash
-PY=~/.local/share/忆时/scripts/memory_core.py
-MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
-# 注意：以下命令使用 $PY 与 $MEMO_DIR 变量，须先执行上方两行定义；或直接写全路径 python3 ~/.local/share/忆时/scripts/memory_core.py
+PY=~/.local/share/yishi/scripts/memory_core.py
+MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
+# 注意：以下命令使用 $PY 与 $MEMO_DIR 变量，须先执行上方两行定义；或直接写全路径 python3 ~/.local/share/yishi/scripts/memory_core.py
+# Windows（中文路径易乱码）：PY=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py，MEMO_DIR=%USERPROFILE%\.local\share\yishi\data，python 替 python3
 
 初始化:    python3 $PY init
 存储记忆:  python3 $PY store "内容" --type task --emotion 0.8 [--scene 场景] [--activity-start 2025-05-01] [--activity-end 2025-05-10] [--force] [--merge-ids "旧ID1,旧ID2"]
@@ -88,9 +89,9 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 查看胶囊:  python3 $PY capsule list
 导入:      python3 $PY import-file file.md --format markdown
 导出:      python3 $PY export --format timeline --output output.md
-可视化:    python3 ~/.local/share/忆时/scripts/viz/viz.py
-专题之书:  python3 ~/.local/share/忆时/scripts/viz/viz.py --topic "系统运维" --label "openKylin"
-记忆脑图:  python3 ~/.local/share/忆时/scripts/viz/mindmap.py
+可视化:    python3 ~/.local/share/yishi/scripts/viz/viz.py
+专题之书:  python3 ~/.local/share/yishi/scripts/viz/viz.py --topic "系统运维" --label "openKylin"
+记忆脑图:  python3 ~/.local/share/yishi/scripts/viz/mindmap.py
 统计:      python3 $PY stats
 遗忘:      python3 $PY forget --before "2025-01-01" --auto
 恢复:      python3 $PY recover
@@ -184,4 +185,4 @@ MEMO_DIR=~/.local/share/忆时/data    # 所有命令必设
 - 脚本: `scripts/memory_core.py`
 - 数据: `data/` (ChromaDB PersistentClient 自动创建)
 - 模型: bge-base-zh-v1.5（768维，唯一模型，无回退）。安装见 modules/08-setup.md
-- 备份: `~/.local/share/忆时/memories_backup.jsonl`（可用 MEMO_BAK 覆盖，多实例/测试隔离）
+- 备份: `~/.local/share/yishi/memories_backup.jsonl`（可用 MEMO_BAK 覆盖，多实例/测试隔离）

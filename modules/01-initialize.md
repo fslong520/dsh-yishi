@@ -51,7 +51,7 @@ ChromaDB 内会创建以下集合:
 ## 模型安装
 
 本技能使用 **bge-base-zh-v1.5**（BAAI 中文语义模型，768 维），**无回退**。
-引擎检测 `~/.local/share/忆时/models/bge-base-zh-v1.5/`，缺失即报错。
+引擎检测 `~/.local/share/yishi/models/bge-base-zh-v1.5/`，缺失即报错。
 安装命令——详见 modules/08-setup.md。
 
 > ⚠️ 模型不会写入 `~/.cache/chroma/`，清缓存不会被删除。
@@ -60,4 +60,4 @@ ChromaDB 内会创建以下集合:
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| MEMO_DIR | ~/.local/share/忆时/data | ChromaDB 存储路径 |
+| MEMO_DIR | ~/.local/share/yishi/data | ChromaDB 存储路径 |

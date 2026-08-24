@@ -6,7 +6,7 @@
 
 取工作目录之末尾目录名（即项目名）：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "项目名" --limit 3 --expand
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "项目名" --limit 3 --expand
 ```
 若项目无关，则取其父目录名再试。过去涉及该项目之决策、偏好、任务皆可浮现。
 
@@ -19,13 +19,13 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **第零轮（并行触发）：**
 收到用户消息后，立即以 background 任务发起语义检索，与分析用户意图并行执行：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户发言核心关键词" --limit 3 --expand
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "用户发言核心关键词" --limit 3 --expand
 ```
 检索结果须在本次回复结束前收集并体现。
 
 **第一轮：语义检索**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户发言关键词" --limit 3 --expand
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "用户发言关键词" --limit 3 --expand
 ```
 
 **第二轮：涌现判定（强制）**
@@ -33,7 +33,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 - 若有 `[关联]` 标记项 → 已现涌现，直接表达："说到此，忆起一事……"
 - 若结果 ≥ 2 条 → 取 top-2 之关键字/内容，构建复合查询，做第二轮涌现检索：
   ```bash
-  MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "原关键词 新关键词" --limit 3
+  MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "原关键词 新关键词" --limit 3
   ```
 - 若第二轮结果与第一轮不重叠 → 此乃涌现之记忆，主动提及
 - **仅1条亦须审视**：哪怕是单条，若语义沾边，即应表达关联——降低涌现门槛
@@ -41,7 +41,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **第三轮：情绪锚定（强制）**
 每轮都查情绪锚定，而非仅"情绪显著时"。以情绪倾向词 + 话题词检索：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "话题词 情绪倾向" --type-filter emotion --min-weight 0.5 --limit 3
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "话题词 情绪倾向" --type-filter emotion --min-weight 0.5 --limit 3
 ```
 
 **涌现表达原则：**
@@ -65,16 +65,16 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **命令示例（深度检索）：**
 ```bash
 # L1 加深：跨类型搜索（默认3条最相关）
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "用户话题关键词" --limit 3 --expand
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "用户话题关键词" --limit 3 --expand
 
 # L2 换角度：近义词/同义表达
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "近义词" --limit 3 --expand
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "近义词" --limit 3 --expand
 
 # L3 扩散检索：以命中条的关键词延伸
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "已有结果的关键词 新角度" --limit 3 --expand
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "已有结果的关键词 新角度" --limit 3 --expand
 
 # L4 情绪锚定强搜索
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "话题词 情绪词" --type-filter emotion --min-weight 0.7 --limit 3
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "话题词 情绪词" --type-filter emotion --min-weight 0.7 --limit 3
 ```
 
 ## 主动存储——激进策略
@@ -115,11 +115,11 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **存储命令：**（内容为位置参数放最后，勿用 `--content`/`--tags`；关键字用 `--keywords`）
 ```bash
 # 默认：存前检索相似≥70%候选，完整打印候选原文供 AI 读取判断；机械存储兜底
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字"
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py store "内容" --type 类型 --emotion 情绪 --keywords "关键字"
 # AI 判不能合并：静默强制新增
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "内容" --type 类型 --force
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py store "内容" --type 类型 --force
 # AI 判能合并：删指定旧记忆(逗号分隔)，本内容(综合合并版)存为新条目
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py store "综合合并版" --type 类型 --merge-ids "旧ID1,旧ID2"
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py store "综合合并版" --type 类型 --merge-ids "旧ID1,旧ID2"
 ```
 **存时决策流程（AI 主导）**：
 1. store 打印相似≥70% 候选的**完整原文**（非片段）——AI 必须读到全文才能判断。
@@ -131,12 +131,12 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 **语义合并命令（merge，2026-08-22 立）：** 梳理时高相关记忆**靠语义检索合并，非字符串**。autostore 去重仅在相似≥90% 机械拼接内容（`旧。新`），措辞稍异即分家致同主题多条矛盾——故梳理须用 `merge` 语义识簇、AI 手写权威版、删旧。
 ```bash
 # ① 预览：以某条记忆为锚，向量语义找出相似≥阈值的簇（dry-run，不删）
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py \
   merge --id <锚ID> --threshold 0.68 [--keyword "过滤词"]   # keyword 按候选 keywords 字段收窄
 
 # ② AI 逐条读簇内原文，写权威合并版（前因/行为/后果）
 # ③ 真正合并删旧：--content 必须为 AI 手写权威版
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py \
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py \
   merge --id <锚ID> --content "权威合并版全文" --keywords "新关键字" --emotion 0.6 --apply
 ```
 - 锚 ID 保留，权威版写入该 ID 加 `consolidated` 标签；簇内其余逐条 delete。
@@ -161,5 +161,5 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory
 
 **凡做决策或提问之前，必先查询记忆。** 无论大小决定——拟建议、择方案、答问题——皆先 `recall` 检索相关记忆，确认有无既有决策、偏好、约定可循：
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/memory_core.py recall "决策主题关键词" --limit 3
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_core.py recall "决策主题关键词" --limit 3
 ```

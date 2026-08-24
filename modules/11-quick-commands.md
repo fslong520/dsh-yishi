@@ -37,7 +37,7 @@
 
 **命令构造：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI store "内容" --type <类型> --emotion <情绪> --keywords "自动提取2-3关键词"
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI store "内容" --type <类型> --emotion <情绪> --keywords "自动提取2-3关键词"
 ```
 
 **默认值：** `--type task --emotion 0.5`（情绪用 0.0~1.0 数值，越大越重要；旧词 high=0.8/medium=0.5/low=0.2 仍兼容）
@@ -55,7 +55,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI store "内容" --type <类型
 
 **命令构造：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI recall "关键词" --limit <数量> --expand
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI recall "关键词" --limit <数量> --expand
 ```
 
 **默认值：** `--limit 3 --expand`（默认最相关 3 条；相似 >0.5 即看，最相关 3 条）
@@ -75,7 +75,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI recall "关键词" --limit <�
 
 **命令构造：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI delete --id <记忆ID>
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI delete --id <记忆ID>
 ```
 
 **注意：** delete 按记忆 ID 删除单条，不可逆（除非 recover）。forget 命令仅支持按日期/频率归档（--before/--low-freq/--auto），不支持按关键词删除。
@@ -92,7 +92,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI delete --id <记忆ID>
 
 **命令构造：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI stats
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI stats
 ```
 
 **回复格式：**
@@ -107,21 +107,21 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI stats
 ## 导出（export）
 
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI export --format timeline --output /tmp/yishi_export.md
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI export --format timeline --output /tmp/yishi_export.md
 ```
 回复：`"导出完毕。文件：/tmp/yishi_export.md"`
 
 ## 可视化（viz）
 
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/viz.py
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/viz/viz.py
 ```
 参数、产出、主题聚类、回复风格——详见 modules/12-viz-profile.md「可视化」。
 
 ## 脑图（mindmap）
 
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/mindmap.py
+MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/viz/mindmap.py
 ```
 产出交互式**记忆图谱**（网状力导向图，仿 MPE graph-view：节点按类型着色、大小∝成员×容量×频次、语义关联为边、标题≤10字自动折行、**点击节点弹右栏看详情**、缩放/拖拽/搜索）。详见 modules/12-viz-profile.md「记忆脑图」。
 
@@ -132,7 +132,7 @@ MEMO_DIR=~/.local/share/忆时/data python3 ~/.local/share/忆时/scripts/viz/mi
 ## 恢复（recover）
 
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI recover
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI recover
 ```
 回复：`"已恢复。"`
 
@@ -146,8 +146,8 @@ MEMO_DIR=~/.local/share/忆时/data python3 $YISHI recover
 
 **命令构造示例：**
 ```bash
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI capsule lock --unlock-at "2026-12-31" --summary "年度记忆"
-MEMO_DIR=~/.local/share/忆时/data python3 $YISHI capsule list
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI capsule lock --unlock-at "2026-12-31" --summary "年度记忆"
+MEMO_DIR=~/.local/share/yishi/data python3 $YISHI capsule list
 ```
 
 **回复风格：**

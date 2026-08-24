@@ -34,10 +34,10 @@ const PROVIDER_RANK = 550;
 /** 插件包根目录（lib/index.js → 包根）。 */
 const PLUGIN_DIR = fileURLToPath(new URL('..', import.meta.url));
 
-/** 忆时根目录解析：环境变量 > 默认 ~/.local/share/忆时。 */
+/** 忆时根目录解析：环境变量 > 默认 ~/.local/share/yishi（全英文，跨平台统一，避免中文路径乱码）。 */
 function resolveDataBase() {
 	const env = process.env.YISHI_DATA_DIR;
-	return env ? env : join(homedir(), '.local', 'share', '忆时');
+	return env ? env : join(homedir(), '.local', 'share', 'yishi');
 }
 
 /** 极简 frontmatter 解析（YAML 子集）：取 name 与 description。 */
