@@ -573,6 +573,44 @@ def cmd_store(args):
         return None
 
     mem_id = str(uuid.uuid4())
+
+    # ── 链式前向星挂载：--parent <父ID> 把本节点挂到父的子树链 ──
+    # 邻接表结构：父节点 metadata.first_child=首子ID；子节点 metadata.next_sibling=下一兄弟ID；
+    # 子节点 metadata.parent_id=父ID。遍历：沿 first_child → next_sibling 走链。
+    parent_id = getattr(args, "parent", None)
+    if parent_id:
+        try:
+            p_meta = mem_col.get(ids=[parent_id])["metadatas"]
+            if p_meta and p_meta[0] is not None:
+                parent_meta = dict(p_meta[0])
+                fc = parent_meta.get("first_child", "") or ""
+                if not fc:
+                    # 父无首子 → 本节点为首子
+                    parent_meta["first_child"] = mem_id
+                    mem_col.update(ids=[parent_id], metadatas=[parent_meta])
+                    _append_backup(parent_id, None, parent_meta)
+                else:
+                    # 沿兄弟链找尾，挂 next_sibling
+                    cur_id, cur_meta = fc, None
+                    for _ in range(50):
+                        cm = mem_col.get(ids=[cur_id])["metadatas"]
+                        if not cm or cm[0] is None:
+                            break
+                        cur_meta = dict(cm[0])
+                        ns = cur_meta.get("next_sibling", "") or ""
+                        if not ns:
+                            cur_meta["next_sibling"] = mem_id
+                            mem_col.update(ids=[cur_id], metadatas=[cur_meta])
+                            _append_backup(cur_id, None, cur_meta)
+                            break
+                        cur_id = ns
+                metadata["parent_id"] = parent_id
+                print(f"🔗 已挂载到父节点 {parent_id[:12]} 之下（链式前向星）")
+            else:
+                print(f"⚠️ 父节点 {parent_id[:12]} 不存在或已删，本节点悬空存储")
+        except Exception as e:
+            print(f"⚠️ 挂载失败（{e}），本节点独立存储")
+
     mem_col.add(documents=[args.content], metadatas=[metadata], ids=[mem_id])
     _update_meta_total(client, "total_memories", 1)
 
@@ -940,6 +978,43 @@ def cmd_recall(args):
         if getattr(args, "judge", False):
             print(f"     │ 🔍 判定维度：相似度{score_pct}% | 类型{item['type']} | 创建{item['created_date']} | 检索{item['recall_count']}次")
             print(f"     │   判同主题？→ 是(可合并，--merge-ids 删旧存新) | 否(机械存储，--force)")
+
+        # 子树展示：命中节点若有子链（链式前向星），沿 first_child → next_sibling 输出
+        try:
+            _hm = mem_col.get(ids=[item["id"]])["metadatas"]
+            if _hm and _hm[0] is not None:
+                _fc = (_hm[0].get("first_child", "") or "")
+                if _fc:
+                    print(f"     │ 🌳 子树（{item['id'][:12]} 之下，链式前向星）：")
+                    _cur = _fc
+                    _depth = 0
+                    while _cur and _depth < 50:
+                        _cm = mem_col.get(ids=[_cur])
+                        if not _cm["ids"]:
+                            break
+                        _cdoc = _cm["documents"][0] if _cm["documents"] else ""
+                        _cmeta = _cm["metadatas"][0] if _cm["metadatas"] else {}
+                        _ct = _cdoc[:44] + ("…" if len(_cdoc) > 44 else "")
+                        print(f"     │    ├─ [{_cur[:12]}] {_ct}")
+                        # 孙代（子节点的子）缩进递归一层
+                        _cfc = (_cmeta.get("first_child", "") or "") if _cmeta else ""
+                        if _cfc:
+                            _gcur = _cfc
+                            _gd = 0
+                            while _gcur and _gd < 50:
+                                _gm = mem_col.get(ids=[_gcur])
+                                if not _gm["ids"]:
+                                    break
+                                _gdoc = _gm["documents"][0] if _gm["documents"] else ""
+                                _gt = _gdoc[:40] + ("…" if len(_gdoc) > 40 else "")
+                                print(f"     │    │  └─ [{_gcur[:12]}] {_gt}")
+                                _gm2 = _gm["metadatas"][0] if _gm["metadatas"] else {}
+                                _gcur = (_gm2.get("next_sibling", "") or "") if _gm2 else ""
+                                _gd += 1
+                        _cur = (_cmeta.get("next_sibling", "") or "") if _cmeta else ""
+                        _depth += 1
+        except Exception:
+            pass
         print()
 
 
@@ -970,6 +1045,170 @@ def cmd_update(args):
     mem_col.update(ids=[args.id], documents=[content], metadatas=[meta])
     _append_backup(args.id, content, meta)
     print(f"记忆已更新: {args.id}")
+
+
+# ========== promote / demote（heap 式上浮下沉） ==========
+def _unlink_from_parent(mem_col, mem_id, parent_id):
+    """把 mem_id 从父 parent_id 的子树链（first_child→next_sibling）中摘除。
+    返回 True 若成功摘除。"""
+    if not parent_id:
+        return False
+    pm = mem_col.get(ids=[parent_id])["metadatas"]
+    if not pm or pm[0] is None:
+        return False
+    p_meta = dict(pm[0])
+    fc = p_meta.get("first_child", "") or ""
+    if fc == mem_id:
+        # 本节点是首子：父的 first_child 指向下一个兄弟
+        cm = mem_col.get(ids=[mem_id])["metadatas"]
+        ns = ""
+        if cm and cm[0] is not None:
+            ns = (cm[0].get("next_sibling", "") or "")
+        p_meta["first_child"] = ns or ""
+        if not p_meta["first_child"]:
+            p_meta["first_child"] = ""
+        mem_col.update(ids=[parent_id], metadatas=[p_meta])
+        _append_backup(parent_id, None, p_meta)
+        # 清本节点 next_sibling
+        if cm and cm[0] is not None:
+            m = dict(cm[0])
+            m["next_sibling"] = ""
+            mem_col.update(ids=[mem_id], metadatas=[m])
+            _append_backup(mem_id, None, m)
+        return True
+    # 非首子：沿链找前驱，改前驱 next_sibling
+    cur = fc
+    for _ in range(50):
+        if not cur:
+            return False
+        cm = mem_col.get(ids=[cur])["metadatas"]
+        if not cm or cm[0] is None:
+            return False
+        cm_meta = dict(cm[0])
+        ns = cm_meta.get("next_sibling", "") or ""
+        if ns == mem_id:
+            mm = mem_col.get(ids=[mem_id])["metadatas"]
+            nns = ""
+            if mm and mm[0] is not None:
+                nns = (mm[0].get("next_sibling", "") or "")
+            cm_meta["next_sibling"] = nns or ""
+            if not cm_meta["next_sibling"]:
+                cm_meta["next_sibling"] = ""
+            mem_col.update(ids=[cur], metadatas=[cm_meta])
+            _append_backup(cur, None, cm_meta)
+            if mm and mm[0] is not None:
+                m2 = dict(mm[0])
+                m2["next_sibling"] = ""
+                mem_col.update(ids=[mem_id], metadatas=[m2])
+                _append_backup(mem_id, None, m2)
+            return True
+        cur = ns
+    return False
+
+
+def _link_as_child(mem_col, mem_id, new_parent_id):
+    """把 mem_id 挂到 new_parent_id 下：设父 first_child 或追加兄弟链尾。"""
+    pm = mem_col.get(ids=[new_parent_id])["metadatas"]
+    if not pm or pm[0] is None:
+        return False
+    p_meta = dict(pm[0])
+    fc = p_meta.get("first_child", "") or ""
+    if not fc:
+        p_meta["first_child"] = mem_id
+        mem_col.update(ids=[new_parent_id], metadatas=[p_meta])
+        _append_backup(new_parent_id, None, p_meta)
+    else:
+        cur = fc
+        for _ in range(50):
+            cm = mem_col.get(ids=[cur])["metadatas"]
+            if not cm or cm[0] is None:
+                break
+            cm_meta = dict(cm[0])
+            ns = cm_meta.get("next_sibling", "") or ""
+            if not ns:
+                cm_meta["next_sibling"] = mem_id
+                mem_col.update(ids=[cur], metadatas=[cm_meta])
+                _append_backup(cur, None, cm_meta)
+                break
+            cur = ns
+    # 设本节点 parent_id（保留其原 next_sibling 语义：上浮时本节点子链随之，下沉时子链保持）
+    mm = mem_col.get(ids=[mem_id])["metadatas"]
+    if mm and mm[0] is not None:
+        m = dict(mm[0])
+        m["parent_id"] = new_parent_id
+        mem_col.update(ids=[mem_id], metadatas=[m])
+        _append_backup(mem_id, None, m)
+    return True
+
+
+def cmd_promote(args):
+    """heap 上浮：mem_id 升到其父的位置（或祖父层）——摘出当前子树，挂到祖父下。"""
+    client = get_client()
+    mem_col = get_collection(client, "memories")
+    mm = mem_col.get(ids=[args.id])["metadatas"]
+    if not mm or mm[0] is None:
+        print(f"错误: 未找到记忆 {args.id}"); return
+    meta = dict(mm[0])
+    parent_id = meta.get("parent_id", "") or ""
+    if not parent_id:
+        print(f"⚠️ {args.id[:12]} 已是根节点（无父），无可上浮"); return
+    # 摘除：从父链中移除本节点（子链随之）
+    _unlink_from_parent(mem_col, args.id, parent_id)
+    # 新父 = 原父的父（祖父）
+    pm = mem_col.get(ids=[parent_id])["metadatas"]
+    grandparent_id = ""
+    if pm and pm[0] is not None:
+        grandparent_id = (pm[0].get("parent_id", "") or "")
+    if grandparent_id:
+        _link_as_child(mem_col, args.id, grandparent_id)
+        print(f"⬆️ 已上浮：{args.id[:12]} 从 {parent_id[:12]} 子级升到 {grandparent_id[:12]} 子级（祖父层）")
+    else:
+        # 原父是根：本节点成为新根
+        mm2 = mem_col.get(ids=[args.id])["metadatas"]
+        if mm2 and mm2[0] is not None:
+            m2 = dict(mm2[0])
+            m2["parent_id"] = ""
+            mem_col.update(ids=[args.id], metadatas=[m2])
+            _append_backup(args.id, None, m2)
+        print(f"⬆️ 已上浮为根节点：{args.id[:12]}（原父 {parent_id[:12]} 的层级由它取代）")
+
+
+def cmd_demote(args):
+    """heap 下沉：mem_id 挂到 --parent 指定节点下成为其子（摘链+重挂）。"""
+    client = get_client()
+    mem_col = get_collection(client, "memories")
+    if not args.parent:
+        print("错误: 下沉需指定 --parent <目标父ID>"); return
+    if args.parent == args.id:
+        print("错误: 不能下沉到自身"); return
+    mm = mem_col.get(ids=[args.id])["metadatas"]
+    if not mm or mm[0] is None:
+        print(f"错误: 未找到记忆 {args.id}"); return
+    meta = dict(mm[0])
+    old_parent = meta.get("parent_id", "") or ""
+    # 防止环：新父不能是本节点自身子树
+    if _is_descendant(mem_col, args.parent, args.id):
+        print("错误: 目标父是本节点子代，会成环"); return
+    if old_parent:
+        _unlink_from_parent(mem_col, args.id, old_parent)
+    _link_as_child(mem_col, args.id, args.parent)
+    print(f"⬇️ 已下沉：{args.id[:12]} 挂到 {args.parent[:12]} 之下成为叶子")
+
+
+def _is_descendant(mem_col, node_id, ancestor_id):
+    """node_id 是否在 ancestor_id 的子树内（防环）。"""
+    cur = node_id
+    for _ in range(100):
+        mm = mem_col.get(ids=[cur])["metadatas"]
+        if not mm or mm[0] is None:
+            return False
+        pid = (mm[0].get("parent_id", "") or "")
+        if pid == ancestor_id:
+            return True
+        if not pid:
+            return False
+        cur = pid
+    return True
 
 
 # ========== merge（语义合并） ==========
@@ -1525,6 +1764,7 @@ def main():
     p.add_argument("--skill-output", help="技能输出")
     p.add_argument("--skill-version", default="1.0.0", help="技能版本")
     p.add_argument("--skill-path", help="技能可执行路径/调用方式（如 python3 /path/to/tool，缺此 AI 无法定位工具）")
+    p.add_argument("--parent", help="链式前向星挂载：父节点 ID，本节点挂到父的子树链（first_child/next_sibling）")
     p.set_defaults(func=cmd_store)
 
     p = sub.add_parser("recall", help="检索记忆")
@@ -1552,6 +1792,15 @@ def main():
     p = sub.add_parser("delete", help="删除记忆")
     p.add_argument("--id", required=True, help="记忆ID")
     p.set_defaults(func=cmd_delete)
+
+    p = sub.add_parser("promote", help="heap 上浮：记忆升到祖父层/根，层级权重上升")
+    p.add_argument("--id", required=True, help="记忆ID")
+    p.set_defaults(func=cmd_promote)
+
+    p = sub.add_parser("demote", help="heap 下沉：记忆挂到 --parent 下成为叶子")
+    p.add_argument("--id", required=True, help="记忆ID")
+    p.add_argument("--parent", required=True, help="目标父节点ID")
+    p.set_defaults(func=cmd_demote)
 
     p = sub.add_parser("merge", help="语义合并高相关记忆（预览→apply）")
     p.add_argument("--id", required=True, help="锚定记忆ID（合并后保留此ID，写入权威版）")

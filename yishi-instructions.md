@@ -64,6 +64,8 @@
    · 未命中 → 按常规处理，任务完成后再判断是否需 store 为技能（供下次复用）
    · 技能经 store --type skill --skill-name "..." --skill-summary "..." --skill-path "可执行路径/调用方式" --skill-strategy "步骤" --skill-triggers "触发词1,触发词2" 存入
      （⚠️ --skill-path 必填：无路径 AI 无法定位工具，技能形同虚设）
+   · 链式前向星：技能入口用 --parent 挂载子节点（用法/素材/文件），
+     promote（上浮）升到祖父层/根，demote（下沉）挂到指定父下成为叶子
    （技能为结构化记忆，含路径/步骤/触发/输入输出——遇同类任务按技能执行，勿重复发明轮子）
 ```
 
