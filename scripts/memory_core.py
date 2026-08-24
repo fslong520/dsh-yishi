@@ -1066,13 +1066,13 @@ def _unlink_from_parent(mem_col, mem_id, parent_id):
             ns = (cm[0].get("next_sibling", "") or "")
         p_meta["first_child"] = ns or ""
         if not p_meta["first_child"]:
-            p_meta["first_child"] = ""
+            p_meta["first_child"] = None
         mem_col.update(ids=[parent_id], metadatas=[p_meta])
         _append_backup(parent_id, None, p_meta)
         # 清本节点 next_sibling
         if cm and cm[0] is not None:
             m = dict(cm[0])
-            m["next_sibling"] = ""
+            m["next_sibling"] = None
             mem_col.update(ids=[mem_id], metadatas=[m])
             _append_backup(mem_id, None, m)
         return True
@@ -1093,12 +1093,12 @@ def _unlink_from_parent(mem_col, mem_id, parent_id):
                 nns = (mm[0].get("next_sibling", "") or "")
             cm_meta["next_sibling"] = nns or ""
             if not cm_meta["next_sibling"]:
-                cm_meta["next_sibling"] = ""
+                cm_meta["next_sibling"] = None
             mem_col.update(ids=[cur], metadatas=[cm_meta])
             _append_backup(cur, None, cm_meta)
             if mm and mm[0] is not None:
                 m2 = dict(mm[0])
-                m2["next_sibling"] = ""
+                m2["next_sibling"] = None
                 mem_col.update(ids=[mem_id], metadatas=[m2])
                 _append_backup(mem_id, None, m2)
             return True
@@ -1167,7 +1167,7 @@ def cmd_promote(args):
         mm2 = mem_col.get(ids=[args.id])["metadatas"]
         if mm2 and mm2[0] is not None:
             m2 = dict(mm2[0])
-            m2["parent_id"] = ""
+            m2["parent_id"] = None
             mem_col.update(ids=[args.id], metadatas=[m2])
             _append_backup(args.id, None, m2)
         print(f"⬆️ 已上浮为根节点：{args.id[:12]}（原父 {parent_id[:12]} 的层级由它取代）")
