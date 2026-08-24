@@ -718,7 +718,10 @@ def cmd_recall(args):
                     continue
                 meta = trigger_results["metadatas"][i] if trigger_results["metadatas"] else {}
                 kws = meta.get("keywords", "")
-                triggers = [k.strip().split(":", 1)[1] for k in kws.split(",") if k.strip().startswith("trigger:")]
+                trig_field = meta.get("skill_triggers", "") or ""
+                triggers = [t.strip() for t in trig_field.split(",") if t.strip()]
+                if not triggers:
+                    triggers = [k.strip().split(":", 1)[1] for k in kws.split(",") if k.strip().startswith("trigger:")]
                 if not any(t.lower() in query_lower for t in triggers if t.strip()):
                     continue
                 doc = trigger_results["documents"][i] if trigger_results["documents"] else ""
@@ -904,6 +907,31 @@ def cmd_recall(args):
             b = item.get("activity_end", "") or "?"
             activity = f" (活动时间: {a} ~ {b})" if item.get("activity_start") and item.get("activity_end") else f" (活动时间: {a or b})"
         print(f"     │ 📝 {content}{activity}")
+
+        # 技能卡：type=skill 时展示结构化字段，供 AI 直接按技能执行
+        if item.get("type") == "skill":
+            try:
+                _sm = mem_col.get(ids=[item["id"]])
+                if _sm["metadatas"]:
+                    _smd = _sm["metadatas"][0]
+                    _sn = _smd.get("skill_name", "") or ""
+                    _ss = _smd.get("skill_summary", "") or ""
+                    _st = _smd.get("skill_strategy", "") or ""
+                    _sa = _smd.get("skill_avoid", "") or ""
+                    _tri = _smd.get("skill_triggers", "") or ""
+                    _inp = _smd.get("skill_input", "") or ""
+                    _out = _smd.get("skill_output", "") or ""
+                    _ver = _smd.get("skill_version", "") or ""
+                    if _sn: print(f"     │ 🎯 技能: {_sn}" + (f" v{_ver}" if _ver else ""))
+                    if _ss: print(f"     │ 📌 概括: {_ss}")
+                    if _tri: print(f"     │ ⚡ 触发: {_tri}")
+                    if _st: print(f"     │ 🛠 步骤: {_st}")
+                    if _inp: print(f"     │ 📥 输入: {_inp}")
+                    if _out: print(f"     │ 📤 输出: {_out}")
+                    if _sa: print(f"     │ ⚠️ 禁忌: {_sa}")
+                    print(f"     │ 🔧 遇此类任务，按此技能执行")
+            except Exception:
+                pass
 
         # 判定模式（--judge）：值必存第一段用——供 AI 判本内容与旧忆是否同主题
         if getattr(args, "judge", False):
