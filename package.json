@@ -1,6 +1,6 @@
 {
   "name": "@fslong/dsh-yishi",
-  "version": "0.4.18",
+  "version": "0.4.19",
   "description": "为 AI Agent 提供类人记忆系统的 DSH 插件（自包含）：同步 docs/scripts 至 ~/.local/share/yishi，注入记忆指令 + 注册 memocap 技能。混合检索/遗忘曲线/时间胶囊/可视化。",
   "keywords": [
     "dsh",
