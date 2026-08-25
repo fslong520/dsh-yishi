@@ -2,8 +2,8 @@
 
 ## 版本
 
-- chromadb 1.5.4
-- Python 3.13+
+- chromadb 1.5.4+
+- Python 3.9+（Windows 用 `python`，Linux/macOS 用 `python3`）
 
 ## 客户端初始化
 

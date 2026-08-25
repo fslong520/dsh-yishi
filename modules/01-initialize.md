@@ -6,12 +6,17 @@
 
 ## 执行步骤
 
-1. 检查 Python 3.13 是否可用
-2. 检查 chromadb 是否已安装
+1. 检查 Python 3.9+ 是否可用（Windows 用 `python`，Linux/macOS 用 `python3`）
+2. 检查依赖是否已装（chromadb/jieba/onnxruntime/tokenizers/numpy，缺则 `python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt`）
 3. 运行初始化命令:
 
 ```bash
-python3 /home/fslong/.local/share/忆时/scripts/memory_core.py init
+# Linux/macOS
+python3 ~/.local/share/yishi/scripts/memory_core.py init
+# Windows（无 python3 时用 python）
+python %USERPROFILE%\.local\share\yishi\scripts\memory_core.py init
+# 推荐一键自愈（依赖+初始化+模型，幂等）
+python3 ~/.local/share/yishi/scripts/install.py
 ```
 
 4. 确认输出包含"忆时记忆系统初始化完成"

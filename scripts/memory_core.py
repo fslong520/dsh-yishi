@@ -37,7 +37,24 @@ from pathlib import Path
 # 静默 ONNX C++ 层 Schema error 滋扰
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore')
-import jieba  # noqa: E402  须在 filterwarnings 之后 import，压 pkg_resources 弃用警告
+
+def _die_missing_deps(pkg_hint):
+    """顶层依赖缺失——给自愈指引，勿裸崩（Windows 无 python3 亦须可读）。"""
+    print(
+        f"\n❌ 忆时缺少依赖：{pkg_hint}\n"
+        "   请先安装（以下任一）：\n"
+        "   · 一键自愈: python3 ~/.local/share/yishi/scripts/install.py\n"
+        "     （Windows: python %USERPROFILE%\\.local\\share\\yishi\\scripts\\install.py）\n"
+        "   · 手动: python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt\n"
+        "     （Windows: python -m pip install -r %USERPROFILE%\\.local\\share\\yishi\\scripts\\requirements.txt）",
+        file=sys.stderr,
+    )
+    sys.exit(3)
+
+try:
+    import jieba  # noqa: E402  须在 filterwarnings 之后 import，压 pkg_resources 弃用警告
+except ImportError:
+    _die_missing_deps("jieba（BM25 关键词检索）")
 jieba.setLogLevel(60)  # 静默建词典日志
 
 @contextlib.contextmanager
@@ -53,13 +70,17 @@ def _silent_import():
         os.dup2(old_fd2, 2)      # 恢复原 stderr
         os.close(old_fd2)
 
-with _silent_import():
-    import chromadb
+try:
+    with _silent_import():
+        import chromadb
+except ImportError:
+    _die_missing_deps("chromadb（向量库）")
 
 # 模型和数据统一存到 ~/.local/share/yishi/ 下（全英文目录，跨平台统一，避免中文路径乱码；
 # 2026-08-19 迁自 ~/.local/share/opencode/忆时/），不放在技能目录（更新技能会覆盖），
 # 也不放在 ~/.cache/（清缓存会被删除）。opencode 与 DSH 双栖共用此目录。
-LOCAL_BASE = os.path.join(Path.home(), ".local", "share", "yishi")
+# YISHI_DATA_DIR 可覆盖根目录（与 models-install.py / install.py 同源解析，防路径错位）。
+LOCAL_BASE = os.environ.get("YISHI_DATA_DIR") or os.path.join(Path.home(), ".local", "share", "yishi")
 
 DATA_DIR = os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or os.path.join(LOCAL_BASE, "data")
 
@@ -152,14 +173,19 @@ def _ensure_model():
     首次 embedding 调用（recall/store 等）时此处兜底，保证模型必下。
     若已有下载进程在跑（apply spawn），则等待其完成，不重复下载。
     """
-    installer = os.path.join(LOCAL_BASE, "scripts", "models-install.py")
+    installer = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models-install.py")
     if not os.path.exists(installer):
-        print(
-            f"❌ bge 模型缺失且无安装脚本：{installer}\n"
-            "   请手动下载：见 modules/08-setup.md（hf-mirror Xenova/bge-base-zh-v1.5）。",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        # 兜底：迁移期/散装脚本可能不在 scripts/ 同层，回退 LOCAL_BASE/scripts/
+        fallback = os.path.join(LOCAL_BASE, "scripts", "models-install.py")
+        if os.path.exists(fallback):
+            installer = fallback
+        else:
+            print(
+                f"❌ bge 模型缺失且无安装脚本：{installer}\n"
+                "   请手动下载：见 modules/08-setup.md（hf-mirror Xenova/bge-base-zh-v1.5）。",
+                file=sys.stderr,
+            )
+            sys.exit(1)
     bge_onnx = os.path.join(SKILL_MODEL_BASE, "bge-base-zh-v1.5", "onnx", "model.onnx")
     if os.path.exists(bge_onnx):
         return
@@ -205,8 +231,11 @@ class _BGEONNX:
     """
 
     def __init__(self, model_dir):
-        import onnxruntime as ort
-        from tokenizers import Tokenizer
+        try:
+            import onnxruntime as ort
+            from tokenizers import Tokenizer
+        except ImportError as e:
+            _die_missing_deps(f"{e.name}（embedding 推理依赖）")
 
         self._np = __import__("numpy")
         self.session = ort.InferenceSession(

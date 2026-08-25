@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """忆时 bge-base-zh-v1.5 模型下载器（幂等，锁防并发，原子写）。
 
-目标：{YISHI_DATA_DIR 或 ~/.local/share/忆时}/models/bge-base-zh-v1.5/
+目标：{YISHI_DATA_DIR 或 ~/.local/share/yishi}/models/bge-base-zh-v1.5/
   - onnx/model.onnx（~400MB，bge 768 维，中文语义检索）
   - config.json tokenizer.json special_tokens_map.json tokenizer_config.json vocab.txt
 
@@ -14,8 +14,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+# 2026-08-25 与 memory_core.py 统一：全英文 ~/.local/share/yishi（跨平台，Windows 中文路径易乱码）
 DATA_BASE = Path(
-    os.environ.get("YISHI_DATA_DIR") or str(Path.home() / ".local" / "share" / "忆时")
+    os.environ.get("YISHI_DATA_DIR") or str(Path.home() / ".local" / "share" / "yishi")
 )
 MODEL_DIR = DATA_BASE / "models" / "bge-base-zh-v1.5"
 ONNX_DIR = MODEL_DIR / "onnx"

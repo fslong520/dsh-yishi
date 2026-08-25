@@ -3,7 +3,7 @@
 // 职责（全功能迁入插件，不依赖 opencode 技能目录）：
 //   1. 同步资源——把插件包内 docs（SKILL.md / yishi-instructions.md /
 //      modules / references）与 scripts（memory_core.py / viz/）复制到
-//      忆时根目录（~/.local/share/忆时/），幂等覆盖，插件版本为权威。
+//      忆时根目录（~/.local/share/yishi/），幂等覆盖，插件版本为权威。
 //   2. 注入忆时指令——systemPrompt.section 读
 //      <忆时根>/docs/yishi-instructions.md。
 //   3. 保障忆时技能——ctx.skills.registerProvider 注册 memocap，
@@ -13,10 +13,10 @@
 // opencode 忆时技能作废后，插件为唯一提供者。
 //
 // 环境变量：
-//   YISHI_DATA_DIR   忆时根目录（默认 ~/.local/share/忆时）
+//   YISHI_DATA_DIR   忆时根目录（默认 ~/.local/share/yishi）
 //   DSH_YISHI_DISABLE 设为 1 禁用插件
 
-import { cpSync, existsSync, mkdirSync, openSync, closeSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, openSync, closeSync, readFileSync, writeSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -103,37 +103,34 @@ export function apply(ctx) {
 	const instructionsPath = join(docsDir, 'yishi-instructions.md');
 	const skillPath = join(docsDir, 'SKILL.md');
 
-	// ── 3. 模型保障：缺失即后台下载 ─────────────────────────────────────
-	// 独立 try/catch 且置于注入/注册之前——任一环节失败不阻断模型下载。
-	// spawn 监听 error/exit，输出落盘 models-install.log，失败有痕可查。
+	// ── 3. 环境保障：依赖缺失 → 后台安装；模型缺失 → 后台下载 ──────
+	// 统一入口 scripts/install.py（幂等，sys.executable 自定解释器，无 python3/python 之争）。
+	// 独立 try/catch 且置于注入/注册之前——任一环节失败不阻断注入。
+	// 输出落盘 install.log，失败有痕可查。
 	try {
-		const modelFile = join(
-			dataBase,
-			'models',
-			'bge-base-zh-v1.5',
-			'onnx',
-			'model.onnx',
-		);
-		if (!existsSync(modelFile)) {
-			const scriptsDir = synced ? synced.scriptsDest : join(dataBase, 'scripts');
-			const installer = join(scriptsDir, 'models-install.py');
-			if (existsSync(installer)) {
-				const logFile = join(dataBase, 'models-install.log');
+		const scriptsDir = synced ? synced.scriptsDest : join(dataBase, 'scripts');
+		const installPy = join(scriptsDir, 'install.py');
+		if (!existsSync(installPy)) {
+			ctx.logger?.warn?.(`${name}: 无自愈脚本 ${installPy}；环境问题请手动运行 install.py`);
+		} else {
+			// 跨平台解释器候选：Windows 用 python/py（仅 python 亦可用），其余 python3。
+			const pyCandidates =
+				process.platform === 'win32' ? ['python', 'py', 'python3'] : ['python3', 'python'];
+			// 后台跑 python <args>，输出落盘 <logFile>；候选解释器逐个试。
+			const runPython = (args, logFile, label, onDone) => {
 				const out = openSync(logFile, 'a');
-				// 跨平台解释器候选：Windows 用 python/py，其余 python3。
-				// 若自动下载不生效，文档已明示手动安装（README「模型安装（必做）」）。
-				const pyCandidates =
-					process.platform === 'win32' ? ['python', 'py'] : ['python3'];
+				const stamp = `\n[${new Date().toISOString()}] ${name} ${label}\n`;
+				writeSync(out, stamp);
 				let pyIdx = 0;
 				const trySpawn = () => {
 					if (pyIdx >= pyCandidates.length) {
 						try { closeSync(out); } catch {}
 						ctx.logger?.error?.(
-							`${name}: python 解释器均不可用（${pyCandidates.join(', ')}）；请手动运行 ${installer}`,
+							`${name}: python 解释器均不可用（${pyCandidates.join(', ')}）；请手动运行 ${installPy}`,
 						);
 						return;
 					}
-					const child = spawn(pyCandidates[pyIdx], [installer], {
+					const child = spawn(pyCandidates[pyIdx], args, {
 						detached: true,
 						stdio: ['ignore', out, out],
 					});
@@ -143,25 +140,50 @@ export function apply(ctx) {
 					});
 					child.on('exit', (code) => {
 						try { closeSync(out); } catch {}
-						ctx.logger?.info?.(
-							`${name}: models-install.py 退出码 ${code}；日志 ${logFile}`,
-						);
+						onDone?.(code);
 					});
 					child.unref();
 				};
 				trySpawn();
+			};
+			// 3a. 依赖检测：import 失败 → 后台 pip 安装
+			const depsCheck = () =>
+				runPython(
+					['-c', 'import chromadb, jieba, onnxruntime, tokenizers, numpy'],
+					join(dataBase, 'deps-check.log'),
+					'deps-check',
+					(code) => {
+						if (code !== 0) {
+							ctx.logger?.info?.(`${name}: 依赖缺失（rc=${code}），后台安装依赖`);
+							runPython(
+								[installPy, '--deps-only'],
+								join(dataBase, 'install.log'),
+								'deps-install',
+								(c) => ctx.logger?.info?.(`${name}: 依赖安装退出码 ${c}`),
+							);
+						}
+					},
+				);
+			// 3b. 模型保障：缺失 → 后台下载（install.py 幂等，跳过已装依赖）
+			const modelFile = join(dataBase, 'models', 'bge-base-zh-v1.5', 'onnx', 'model.onnx');
+			if (!existsSync(modelFile)) {
+				depsCheck();
 				ctx.logger?.info?.(
-					`${name}: bge 模型缺失，尝试后台下载（${pyCandidates[0]}）；若未生效请手动安装，日志 ${logFile}`,
+					`${name}: bge 模型缺失，尝试后台下载（${pyCandidates[0]}）；若未生效请手动运行 ${installPy}，日志 ${join(dataBase, 'install.log')}`,
+				);
+				runPython(
+					[installPy, '--model-only'],
+					join(dataBase, 'install.log'),
+					'model-download',
+					(code) => ctx.logger?.info?.(`${name}: 模型下载退出码 ${code}`),
 				);
 			} else {
-				ctx.logger?.warn?.(
-					`${name}: 模型缺失且无安装脚本 ${installer}；请手动运行 pnpm models:install`,
-				);
+				depsCheck();
 			}
 		}
 	} catch (e) {
 		ctx.logger?.warn?.(
-			`${name}: 模型保障失败: ${String(e?.message ?? e)}`,
+			`${name}: 环境保障失败: ${String(e?.message ?? e)}`,
 		);
 	}
 

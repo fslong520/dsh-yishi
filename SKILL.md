@@ -180,9 +180,18 @@ MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
 
 ## 运行环境
 
-- Python: 3.13+
-- 依赖: chromadb 1.5.4、jieba（BM25 关键词检索）
+- Python: 3.9+（Windows 用 `python`，Linux/macOS 用 `python3`，脚本不硬编码解释器）
+- 依赖: chromadb>=1.5.4、jieba、onnxruntime、tokenizers、numpy（见 `scripts/requirements.txt`）
 - 脚本: `scripts/memory_core.py`
 - 数据: `data/` (ChromaDB PersistentClient 自动创建)
 - 模型: bge-base-zh-v1.5（768维，唯一模型，无回退）。安装见 modules/08-setup.md
 - 备份: `~/.local/share/yishi/memories_backup.jsonl`（可用 MEMO_BAK 覆盖，多实例/测试隔离）
+
+### 环境自愈（AI 发现用不起来时自行安装）
+
+脚本报错（缺依赖/未初始化/模型缺失）时，**AI 先自修再问人**，固定流程：
+
+1. 定解释器：`python3 --version` 不通则试 `python --version`（Windows 常见），再试 `py -3 --version`。
+2. 一键自愈（幂等）：`python3 ~/.local/share/yishi/scripts/install.py`（Windows: `python %USERPROFILE%\.local\share\yishi\scripts\install.py`）
+3. 分步兜底：`-m pip install -r requirements.txt` / `memory_core.py init` / `models-install.py`
+4. 仍败才报用户，附报错原文与已执行命令痕迹。

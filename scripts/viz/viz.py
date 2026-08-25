@@ -25,8 +25,8 @@ def _norm_emo(val):
     try: return max(0.0, min(1.0, float(s)))
     except ValueError: return 0.5
 TPL = VIZ_DIR / "template.html"
-# 与 memory_core.py 一致：默认 LOCAL_BASE/data（~/.local/share/忆时/data，忆时专属）
-LOCAL_BASE = Path.home() / ".local" / "share" / "忆时"
+# 与 memory_core.py 一致：默认 LOCAL_BASE/data（~/.local/share/yishi/data，忆时专属）
+LOCAL_BASE = Path.home() / ".local" / "share" / "yishi"
 DATA_DIR = os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or str(LOCAL_BASE / "data")
 
 # ---------- 主题聚类规则（顺序优先，首中即归） ----------

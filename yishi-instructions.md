@@ -7,7 +7,7 @@
 **每轮对话，作答之前，必先执行：**
 
 ```text
-0【先定义路径】（设一次，本会话永久可用）
+0【先定义路径】（设一次，本会话永久可用。⚡ 解释器选择：Linux/macOS 用 python3，Windows 用 python；若 python3 不可用则试 python，反之亦然——见「环境自愈」节）
    export MEMO_DIR=~/.local/share/yishi/data
    YISHI=~/.local/share/yishi/scripts/memory_core.py
    （Windows：MEMO_DIR=%USERPROFILE%\.local\share\yishi\data，YISHI=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py）
@@ -150,6 +150,33 @@ python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
 3. `memory_core.py` 所用 Python 解释器是否可用？——不可用则一切操作空转。Windows 用 `python`，Linux/macOS 用 `python3`。
 
 验不过即报，不跳不绕。此非可选项，乃门槛。
+
+### 环境自愈（三检不过，先自修再问人）
+
+**凡脚本报错（命令找不到 / ModuleNotFoundError / No module named / 初始化失败 / 模型缺失），AI 须先自行修复环境，不得直接报错交回用户。** 修复流程固定如下：
+
+1. **定解释器**——`python3 --version` 通则用 python3；不通试 `python --version`（Windows 常见仅 python）；再不通试 `py -3 --version`（Windows 官方 launcher）。**取第一个可用者，以下命令全部替换之。**
+
+2. **一键自愈**（幂等，可反复跑；缺依赖装依赖、缺 data 建 data、缺模型下模型）：
+   ```bash
+   # Linux/macOS
+   python3 ~/.local/share/yishi/scripts/install.py
+   # Windows
+   python %USERPROFILE%\.local\share\yishi\scripts\install.py
+   ```
+   跑完 `--check` 复查：`python3 ~/.local/share/yishi/scripts/install.py --check` 出「✓ 环境齐备」方止。
+
+3. **分步兜底**（一键失败时，按报错拆步执行）：
+   ```bash
+   # 只装依赖（chromadb/jieba/onnxruntime/tokenizers/numpy）
+   python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt
+   # 只初始化（建 data 目录 + Chroma 集合）
+   python3 ~/.local/share/yishi/scripts/memory_core.py init
+   # 只下模型（bge-base-zh-v1.5，~400MB，幂等）
+   python3 ~/.local/share/yishi/scripts/models-install.py
+   ```
+
+4. **仍败才报**——三步皆试仍不通，方得报用户，且附：解释器缺失或依赖装不上之确切报错原文、上述命令已执行之痕迹。报错须带原文，不得只言"环境有问题"。
 
 ## 二、病根——不安全感驱动
 

@@ -17,9 +17,10 @@ DSH 插件——为 AI Agent 提供类人记忆系统。
 
 插件 `apply` 时：
 
-1. 同步 `docs/` + `scripts/` 至 `~/.local/share/忆时/`
+1. 同步 `docs/` + `scripts/` 至 `~/.local/share/yishi/`（全英文目录，跨平台统一，Windows 中文路径易乱码）
 2. 经 `systemPrompt.section` 注入记忆系统指令
 3. 经 `ctx.skills.registerProvider` 注册 `memocap` 技能
+4. 环境保障：Python 依赖缺失 → 后台装依赖；bge 模型缺失 → 后台下载
 
 ## 安装
 
@@ -41,6 +42,20 @@ cd ~/.dsh/profiles/web
 pnpm add file:~/Documents/yishi
 ```
 
+## 首次使用（环境自愈）
+
+插件已自动后台装依赖、下模型；若 AI 报"环境用不起来"（缺依赖/未初始化/模型缺失），AI 会自行运行自愈脚本；亦可手动：
+
+```bash
+# 一键全流程（依赖 + 初始化 + 模型，幂等，可反复跑）
+python3 ~/.local/share/yishi/scripts/install.py
+# Windows（无 python3 时用 python，脚本不硬编码解释器）
+python %USERPROFILE%\.local\share\yishi\scripts\install.py
+
+# 只检查缺什么
+python3 ~/.local/share/yishi/scripts/install.py --check
+```
+
 ## 嵌入模型
 
 插件依赖 **bge-base-zh-v1.5**（~400MB）。首次安装时自动后台下载，无需操作。
@@ -48,25 +63,29 @@ pnpm add file:~/Documents/yishi
 若 AI 回复仍为现代汉语/英语（未出现鲁迅式半文半白风格），说明模型未装成功，手动执行：
 
 ```bash
-python3 ~/.local/share/忆时/scripts/models-install.py
+python3 ~/.local/share/yishi/scripts/models-install.py
+# Windows
+python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
 ```
 
 ## 环境变量
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `YISHI_DATA_DIR` | `~/.local/share/忆时` | 数据目录 |
+| `YISHI_DATA_DIR` | `~/.local/share/yishi` | 忆时根目录（数据+模型+脚本） |
+| `MEMO_DIR` | `<YISHI_DATA_DIR>/data` | 记忆数据目录（Chroma 库） |
 | `DSH_YISHI_DISABLE` | 未设 | `1` 禁用插件 |
 
 ## 命令速查
 
 ```bash
-PY=~/.local/share/忆时/scripts/memory_core.py
-export MEMO_DIR=~/.local/share/忆时/data
+PY=~/.local/share/yishi/scripts/memory_core.py
+export MEMO_DIR=~/.local/share/yishi/data
+# Windows：%USERPROFILE%\.local\share\yishi 替 ~/.local/share/yishi，python 替 python3
 
 python3 $PY recall "关键词" --limit 5
 python3 $PY store --type decision --keywords "k" --emotion 0.5 "内容"
-python3 ~/.local/share/忆时/scripts/viz/viz.py
+python3 ~/.local/share/yishi/scripts/viz/viz.py
 ```
 
 ## 许可

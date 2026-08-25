@@ -54,7 +54,25 @@ done
 
 ## 运行环境
 
-- Python: 3.13+
-- 依赖: chromadb 1.5.4
+- Python: 3.9+（Windows 用 `python`，Linux/macOS 用 `python3`）
+- 依赖: chromadb>=1.5.4、jieba、onnxruntime、tokenizers、numpy（见 `scripts/requirements.txt`）
 - 脚本: `scripts/memory_core.py`
 - 数据: `data/` (ChromaDB PersistentClient 自动创建)
+
+### 依赖安装（首次必做，AI 自愈亦走此路）
+
+脚本顶层 import chromadb/jieba 失败时已打印指引；亦可主动安装：
+
+```bash
+# 一键全流程（依赖 + 初始化 + 模型，幂等，推荐）
+python3 ~/.local/share/yishi/scripts/install.py
+# Windows（无 python3 用 python）
+python %USERPROFILE%\.local\share\yishi\scripts\install.py
+
+# 只装 Python 依赖
+python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt
+# Windows
+python -m pip install -r %USERPROFILE%\.local\share\yishi\scripts\requirements.txt
+```
+
+> **解释器选择**：脚本一律以 `sys.executable`（当前解释器）调 pip/子脚本，不硬编码 python3/python——Windows 只有 `python` 时，用 `python` 跑 install.py 即可，无需降级 Python、无需安装 python3 别名。

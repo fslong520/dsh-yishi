@@ -1,0 +1,8 @@
+# 忆时 memory_core.py 运行依赖（install.py 用之，跨平台）
+# 版本约束：chromadb 1.5.x 系（memory_core 依赖其 PersistentClient API 与 1.5.9 embed_query 语义）
+chromadb>=1.5.4
+jieba>=0.42.1
+# embedding 运行时依赖（bge-base-zh-v1.5 ONNX 推理）
+onnxruntime>=1.17.0
+tokenizers>=0.19.0
+numpy>=1.24.0
