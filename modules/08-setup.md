@@ -6,18 +6,20 @@
 
 本技能使用 **bge-base-zh-v1.5**（BAAI 中文语义模型，768 维，~400MB）——中文记忆检索质量远超英文模型 MiniLM。引擎检测 `~/.local/share/yishi/models/bge-base-zh-v1.5/onnx/model.onnx`，缺失即报错退出，**无回退**（MiniLM 384 维与 bge 768 维数据不兼容，曾致维度冲突）。
 
-**bge-base-zh-v1.5 安装**（模型放运行时目录，技能更新不覆盖）：
+**bge-base-zh-v1.5 安装**（模型放运行时目录，技能更新不覆盖，幂等可反复跑）：
 
 ```bash
-mkdir -p ~/.local/share/yishi/models/bge-base-zh-v1.5/onnx
-# 自 hf-mirror 下载（或浏览器下载后放入）
-curl -sL -o ~/.local/share/yishi/models/bge-base-zh-v1.5/onnx/model.onnx \
-  https://hf-mirror.com/Xenova/bge-base-zh-v1.5/resolve/main/onnx/model.onnx
-cd ~/.local/share/yishi/models/bge-base-zh-v1.5
-for f in config.json tokenizer.json special_tokens_map.json tokenizer_config.json vocab.txt; do
-  curl -sL -o "$f" "https://hf-mirror.com/Xenova/bge-base-zh-v1.5/resolve/main/$f"
-done
+# 推荐：一键全流程（依赖 + 模型 + 初始化 + opencode 配置，幂等）
+python3 ~/.local/share/yishi/scripts/install.py
+# 仅模型（--model-only，跳过已装依赖与已初始化数据）
+python3 ~/.local/share/yishi/scripts/install.py --model-only
+# Windows PowerShell
+python $env:USERPROFILE\.local\share\yishi\scripts\install.py --model-only
+# 插件目录内
+pnpm models:install
 ```
+
+> 模型下载用 urllib 内建实现（重试 4 次），不依赖 curl 或 wget——Windows 无 curl.exe 亦可正常下载。
 
 > ⚠️ **注意**：运行时模型与数据统一存 `~/.local/share/yishi/`（LOCAL_BASE），**不写入 `~/.cache/chroma/`**，亦不存技能目录（技能更新会覆盖）。
 
