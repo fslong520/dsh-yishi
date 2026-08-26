@@ -75,9 +75,12 @@ python3 ~/.local/share/yishi/scripts/install.py --check
 若 AI 回复仍为现代汉语/英语（未出现鲁迅式半文半白风格），说明模型未装成功，手动执行：
 
 ```bash
-python3 ~/.local/share/yishi/scripts/models-install.py
-# Windows PowerShell / cmd.exe（python 替 python3，$env:USERPROFILE 或 %USERPROFILE% 替 ~）
-python $env:USERPROFILE\.local\share\yishi\scripts\models-install.py
+# 一键全流程（推荐）
+python3 ~/.local/share/yishi/scripts/install.py
+# 仅模型
+python3 ~/.local/share/yishi/scripts/install.py --model-only
+# Windows PowerShell
+python $env:USERPROFILE\.local\share\yishi\scripts\install.py --model-only
 ```
 
 ## 环境变量

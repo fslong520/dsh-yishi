@@ -142,10 +142,14 @@ MEMO_DIR=$LOCAL_BASE/data
 忆时 embedding 依赖 **bge-base-zh-v1.5**（约 400MB，中文语义检索）。插件首次启动**自动后台下载**。若下载未生效（AI 回复仍为现代汉语/英语，未现鲁迅式风格），手动执行一次：
 
 ```bash
-# Linux/macOS
-python3 ~/.local/share/yishi/scripts/models-install.py
-# Windows
-python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
+# 一键（推荐，幂等：依赖+模型+初始化+opencode 配置）
+python3 ~/.local/share/yishi/scripts/install.py
+# Linux/macOS 仅模型
+python3 ~/.local/share/yishi/scripts/install.py --model-only
+# Windows PowerShell（python 替 python3，$env:USERPROFILE 替 ~）
+python $env:USERPROFILE\.local\share\yishi\scripts\install.py --model-only
+# Windows cmd.exe
+python %USERPROFILE%\.local\share\yishi\scripts\install.py --model-only
 # 插件目录内亦可：pnpm models:install
 ```
 
@@ -184,7 +188,7 @@ python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
    # 只初始化（建 data 目录 + Chroma 集合）
    python3 ~/.local/share/yishi/scripts/memory_core.py init
    # 只下模型（bge-base-zh-v1.5，~400MB，幂等）
-   python3 ~/.local/share/yishi/scripts/models-install.py
+   python3 ~/.local/share/yishi/scripts/install.py --model-only
    ```
 
 4. **仍败才报**——三步皆试仍不通，方得报用户，且附：解释器缺失或依赖装不上之确切报错原文、上述命令已执行之痕迹。报错须带原文，不得只言"环境有问题"。

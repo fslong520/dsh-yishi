@@ -193,5 +193,5 @@ MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
 
 1. 定解释器：`python3 --version` 不通则试 `python --version`（Windows 常见），再试 `py -3 --version`。
 2. 一键自愈（幂等）：`python3 ~/.local/share/yishi/scripts/install.py`（Windows PS: `python $env:USERPROFILE\.local\share\yishi\scripts\install.py`；cmd: `python %USERPROFILE%\.local\share\yishi\scripts\install.py`）
-3. 分步兜底：`-m pip install -r requirements.txt` / `memory_core.py init` / `models-install.py`
+3. 分步兜底：`install.py --deps-only` / `--init-only` / `--model-only`（或 `-m pip install -r requirements.txt` / `memory_core.py init` / `models-install.py`）
 4. 仍败才报用户，附报错原文与已执行命令痕迹。
