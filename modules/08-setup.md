@@ -21,24 +21,27 @@ done
 
 > ⚠️ **注意**：运行时模型与数据统一存 `~/.local/share/yishi/`（LOCAL_BASE），**不写入 `~/.cache/chroma/`**，亦不存技能目录（技能更新会覆盖）。
 
-## 必须配置外挂提示词
+## 外挂提示词（自动配置，验证方法）
 
-本技能依赖 OpenCode 的 `instructions` 配置才能完整生效。
-未配置时，AI 不会自动检索记忆或存储记忆。
+本技能依赖 OpenCode 的 `instructions` 配置才能完整生效（DSH 插件已自动注入，无需配置）。
+为保障 opencode 双栖用户，`install.py` 全流程与插件 apply 均已自动合并 `~/.config/opencode/opencode.json`（或 `.jsonc`）的 `instructions` 数组，指向 `~/.local/share/yishi/docs/yishi-instructions.md`，**无需手动编辑**。
 
-**配置步骤：**
+**验证方法：**
+```bash
+python3 ~/.local/share/yishi/scripts/install.py --check
+# 输出应含「opencode 配置: ✓ 已含忆时指令」
+```
 
-1. 编辑全局配置文件 `~/.config/opencode/opencode.json`
-2. 添加 `instructions` 字段，指向技能目录下的提示词文件：
-
+**手动配置（仅需确认时）：**
+1. 编辑全局配置文件 `~/.config/opencode/opencode.json`（或 `.jsonc`）
+2. 确认 `instructions` 字段包含以下路径（自动配置已代劳，验证即可）：
 ```json
 {
   "instructions": [
-    "~/.local/share/yishi/yishi-instructions.md"
+    "~/.local/share/yishi/docs/yishi-instructions.md"
   ]
 }
 ```
-
 3. 重启 OpenCode 使配置生效
 
 **配置后 AI 将自动：**

@@ -180,6 +180,14 @@ export function apply(ctx) {
 			} else {
 				depsCheck();
 			}
+			// 3c. opencode 双栖配置：幂等合并 opencode.json(.c) 的 instructions——
+			// 指到插件同步出的 yishi-instructions.md，免用户手编 JSON。
+			runPython(
+				[installPy, '--opencode-only'],
+				join(dataBase, 'install.log'),
+				'opencode-config',
+				(code) => ctx.logger?.info?.(`${name}: opencode 配置退出码 ${code}`),
+			);
 		}
 	} catch (e) {
 		ctx.logger?.warn?.(
