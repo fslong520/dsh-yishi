@@ -103,7 +103,8 @@ export function apply(ctx) {
 	const instructionsPath = join(docsDir, 'yishi-instructions.md');
 	const skillPath = join(docsDir, 'SKILL.md');
 
-	// ── 3. 环境保障：依赖缺失 → 后台安装；模型缺失 → 后台下载 ──────
+	// ── 3. 环境保障：依赖缺失 → 后台安装；模型缺失 → 后台下载；
+	//    模型就绪后建 data；幂等合并 opencode 外挂提示词 ───────────
 	// 统一入口 scripts/install.py（幂等，sys.executable 自定解释器，无 python3/python 之争）。
 	// 独立 try/catch 且置于注入/注册之前——任一环节失败不阻断注入。
 	// 输出落盘 install.log，失败有痕可查。
