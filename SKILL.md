@@ -145,7 +145,7 @@ MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
 ```
 忆时/
 ├── SKILL.md                    # 技能定义 (入口总纲/识别层)
-├── yishi-instructions.md       # 外挂提示词 (必须配置到 opencode.json)
+├── yishi-instructions.md       # 外挂提示词 (install.py/插件 apply 自动配置到 opencode.json)
 ├── modules/                    # 详细流程模块 (执行层，按需读取)
 │   ├── 01-initialize.md        # Chroma 初始化
 │   ├── 02-passive-mode.md      # 被动模式流程

@@ -34,12 +34,12 @@ dsh plugin --profile web add @fslong/dsh-yishi
 ### 本地开发
 
 ```bash
-cd ~/Documents/yishi
+cd ~/Documents/dsh-yishi
 pnpm i && pnpm build
 
 # 装进 profile
 cd ~/.dsh/profiles/web
-pnpm add file:~/Documents/yishi
+pnpm add file:~/Documents/dsh-yishi
 ```
 
 ## 首次使用（环境自愈）

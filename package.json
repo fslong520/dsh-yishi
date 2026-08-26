@@ -32,7 +32,8 @@
   ],
   "scripts": {
     "build": "node build.mjs",
-    "models:install": "python3 scripts/models-install.py || python scripts/models-install.py"
+    "models:install": "python3 scripts/install.py --model-only || python scripts/install.py --model-only",
+    "setup": "python3 scripts/install.py || python scripts/install.py"
   },
   "dsh": {
     "bundle": {
