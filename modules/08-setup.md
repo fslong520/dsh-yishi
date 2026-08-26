@@ -66,13 +66,17 @@ done
 ```bash
 # 一键全流程（依赖 + 初始化 + 模型，幂等，推荐）
 python3 ~/.local/share/yishi/scripts/install.py
-# Windows（无 python3 用 python）
+# Windows PowerShell（无 python3 用 python；$env:USERPROFILE 替 ~）
+python $env:USERPROFILE\.local\share\yishi\scripts\install.py
+# Windows cmd.exe
 python %USERPROFILE%\.local\share\yishi\scripts\install.py
 
 # 只装 Python 依赖
 python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt
-# Windows
+# Windows PowerShell / cmd.exe
+python -m pip install -r $env:USERPROFILE\.local\share\yishi\scripts\requirements.txt
 python -m pip install -r %USERPROFILE%\.local\share\yishi\scripts\requirements.txt
 ```
 
 > **解释器选择**：脚本一律以 `sys.executable`（当前解释器）调 pip/子脚本，不硬编码 python3/python——Windows 只有 `python` 时，用 `python` 跑 install.py 即可，无需降级 Python、无需安装 python3 别名。
+> **PowerShell 三忌**：①`%USERPROFILE%` 是 cmd 语法，PS 中不展开——用 `$env:USERPROFILE`，接子路径写 `${env:USERPROFILE}\.local\...`（花括号防 `.local` 被并入变量名）；②`export VAR=...` 是 bash 语法，PS 用 `$env:VAR = "..."`；③`python3` 常不存在，用 `python`。

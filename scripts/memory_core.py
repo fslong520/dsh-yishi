@@ -44,9 +44,10 @@ def _die_missing_deps(pkg_hint):
         f"\n❌ 忆时缺少依赖：{pkg_hint}\n"
         "   请先安装（以下任一）：\n"
         "   · 一键自愈: python3 ~/.local/share/yishi/scripts/install.py\n"
-        "     （Windows: python %USERPROFILE%\\.local\\share\\yishi\\scripts\\install.py）\n"
+        "     （Windows PS: python $env:USERPROFILE\\.local\\share\\yishi\\scripts\\install.py）\n"
+        "     （Windows cmd: python %USERPROFILE%\\.local\\share\\yishi\\scripts\\install.py）\n"
         "   · 手动: python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt\n"
-        "     （Windows: python -m pip install -r %USERPROFILE%\\.local\\share\\yishi\\scripts\\requirements.txt）",
+        "     （Windows PS: python -m pip install -r $env:USERPROFILE\\.local\\share\\yishi\\scripts\\requirements.txt）",
         file=sys.stderr,
     )
     sys.exit(3)
@@ -591,7 +592,7 @@ def cmd_store(args):
                 od = (og["metadatas"][0].get("created_date", "") or "") if og["metadatas"] else ""
             except Exception:
                 oc, ok, od = "", "", ""
-            print(f"\n  ── 相似 {sem:.0%}  ID: {mid[:12]}  创建: {od}  关键字: {ok}")
+            print(f"\n  ── 相似 {sem:.0%}  ID: {mid}  创建: {od}  关键字: {ok}")
             print(f"  {oc}")
         print(f"\n  ⚠️ 先判后存：本次未写入。统一路径：")
         print(f"   ① 选：从候选中选出值得合并者（可 0 条）")
@@ -955,7 +956,7 @@ def cmd_recall(args):
         if per_limit and len(content) > per_limit:
             content = content[:max(0, per_limit - len(TRUNC_SUFFIX))].rstrip() + TRUNC_SUFFIX
 
-        line_est = len(content) + len(kw_display) + len(item.get("activity_start", "")) + len(item.get("activity_end", "")) + 60
+        line_est = len(content) + len(kw_display) + len(item.get("activity_start", "")) + len(item.get("activity_end", "")) + len(item["id"]) + 70
         if max_total and used_chars + line_est > max_total:
             if idx == 1:
                 content = content[: max(0, max_total - len(TRUNC_SUFFIX))].rstrip() + TRUNC_SUFFIX
@@ -964,7 +965,7 @@ def cmd_recall(args):
                 break
         used_chars += line_est
 
-        print(f"  {idx}. {e_emoji} {type_label}{scene_tag}{capsule_tag}{assoc_tag}{trigger_tag}  ──  {item['created_date']}  情绪{emo_val:.2f}  被检索{item['recall_count']}次  匹配{score_pct}%")
+        print(f"  {idx}. {e_emoji} {type_label}{scene_tag}{capsule_tag}{assoc_tag}{trigger_tag}  ──  {item['created_date']}  情绪{emo_val:.2f}  被检索{item['recall_count']}次  匹配{score_pct}%  🆔 {item['id']}")
 
         if kw_display:
             print(f"     │ 🏷️ {kw_display}")
@@ -1036,6 +1037,7 @@ def cmd_recall(args):
         if getattr(args, "judge", False):
             print(f"     │ 🔍 判定维度：相似度{score_pct}% | 类型{item['type']} | 创建{item['created_date']} | 检索{item['recall_count']}次")
             print(f"     │   判同主题？→ 是(可合并，--merge-ids 删旧存新) | 否(机械存储，--force)")
+            print(f"     │   ⚡ 合并用 ID（完整，勿截断）：{item['id']}")
 
         # 子树展示：命中节点若有子链（链式前向星），沿 first_child → next_sibling 输出
         try:

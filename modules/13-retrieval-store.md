@@ -2,7 +2,7 @@
 
 **何时读**：对话启始取项目名、用户每言必检（涌现检索/情绪锚定）、主动存储、检索结果不足需升级、做决策或提问之前。此乃每言必检之详细执行档，日常对话高频场景触发。
 
-> ⚡ **解释器平台适配**：本模块命令示例皆 `python3`（Linux/macOS）。**Windows 用 `python` 替换 `python3`**（或 `py -3`），路径 `~/.local/share/yishi` 换 `%USERPROFILE%\.local\share\yishi`。凡报错先走「环境自愈」节（见 yishi-instructions.md）——`install.py` 一键装依赖/初始化/下模型，勿硬扛。
+> ⚡ **解释器平台适配**：本模块命令示例皆 `python3`（Linux/macOS）。**Windows 用 `python` 替换 `python3`**（或 `py -3`）；路径 `~/.local/share/yishi` 换 `$env:USERPROFILE\.local\share\yishi`（PowerShell，接子路径用 `${env:USERPROFILE}\.local\...`）或 `%USERPROFILE%\.local\share\yishi`（cmd.exe）。凡报错先走「环境自愈」节（见 yishi-instructions.md）——`install.py` 一键装依赖/初始化/下模型，勿硬扛。
 
 ## 对话启始——项目记忆检索
 

@@ -7,10 +7,19 @@
 **每轮对话，作答之前，必先执行：**
 
 ```text
-0【先定义路径】（设一次，本会话永久可用。⚡ 解释器选择：Linux/macOS 用 python3，Windows 用 python；若 python3 不可用则试 python，反之亦然——见「环境自愈」节）
-   export MEMO_DIR=~/.local/share/yishi/data
-   YISHI=~/.local/share/yishi/scripts/memory_core.py
-   （Windows：MEMO_DIR=%USERPROFILE%\.local\share\yishi\data，YISHI=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py）
+0【先定 shell 与解释器，再定义路径】（设一次，本会话永久可用）
+   a) 定 shell（决定变量语法）：
+      · PowerShell（Windows 默认 DSH 工具终端）→ `$PSVersionTable` 可用。❗ 变量用 `$env:VAR`，花括号 `${env:VAR}` 最保险（`$env:USERPROFILE\.local` 会误吞 `.local` 入变量名）
+      · cmd.exe（Windows 旧终端）→ `echo %CMDEXTVERSION%` 可用。变量用 `%VAR%`
+      · bash（Linux/macOS，DSH 工具默认）→ `echo $BASH_VERSION` 可用。变量用 `$VAR` 或 `export VAR=`
+   b) 定解释器（不通则互试另一）：
+      Linux/macOS: `python3 --version`
+      Windows:     `python --version` 或 `py -3 --version`
+   c) 定义路径（选对应 shell 执行其一）：
+      Bash:        export MEMO_DIR=~/.local/share/yishi/data; YISHI=~/.local/share/yishi/scripts/memory_core.py
+      PowerShell:  $env:MEMO_DIR = "${env:USERPROFILE}\.local\share\yishi\data"; $env:YISHI = "${env:USERPROFILE}\.local\share\yishi\scripts\memory_core.py"
+      cmd.exe:     set MEMO_DIR=%USERPROFILE%\.local\share\yishi\data & set YISHI=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py
+   d) 后续命令中 `python3` 示例仅适用 Linux/macOS；Windows 全用 `python`（或 `py -3`），路径用 `$env:YISHI`（PS）/ `%YISHI%`（cmd）
 
 1【言必检】调用工具：
    python3 $YISHI recall "<用户刚才的话>"
@@ -155,18 +164,20 @@ python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
 
 **凡脚本报错（命令找不到 / ModuleNotFoundError / No module named / 初始化失败 / 模型缺失），AI 须先自行修复环境，不得直接报错交回用户。** 修复流程固定如下：
 
-1. **定解释器**——`python3 --version` 通则用 python3；不通试 `python --version`（Windows 常见仅 python）；再不通试 `py -3 --version`（Windows 官方 launcher）。**取第一个可用者，以下命令全部替换之。**
+1. **定解释器**——`python3 --version` 通则用 python3；不通试 `python --version`（Windows 常见仅 python）；再不通试 `py -3 --version`（Windows 官方 launcher）。**取第一个可用者，以下命令全部替换之。** （PowerShell 里 `$LASTEXITCODE` 判成败：`python --version; $LASTEXITCODE -eq 0`）
 
 2. **一键自愈**（幂等，可反复跑；缺依赖装依赖、缺 data 建 data、缺模型下模型）：
    ```bash
    # Linux/macOS
    python3 ~/.local/share/yishi/scripts/install.py
-   # Windows
+   # Windows（PowerShell）
+   python $env:USERPROFILE\.local\share\yishi\scripts\install.py
+   # Windows（cmd.exe）
    python %USERPROFILE%\.local\share\yishi\scripts\install.py
    ```
-   跑完 `--check` 复查：`python3 ~/.local/share/yishi/scripts/install.py --check` 出「✓ 环境齐备」方止。
+   跑完 `--check` 复查：`python3 ~/.local/share/yishi/scripts/install.py --check`（Windows 同以 `python` 替 `python3`）出「✓ 环境齐备」方止。
 
-3. **分步兜底**（一键失败时，按报错拆步执行）：
+3. **分步兜底**（一键失败时，按报错拆步执行；Windows 全以 `python` 替 `python3`、`$env:USERPROFILE`（PS）或 `%USERPROFILE%`（cmd）替 `~`）：
    ```bash
    # 只装依赖（chromadb/jieba/onnxruntime/tokenizers/numpy）
    python3 -m pip install -r ~/.local/share/yishi/scripts/requirements.txt
@@ -177,6 +188,8 @@ python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
    ```
 
 4. **仍败才报**——三步皆试仍不通，方得报用户，且附：解释器缺失或依赖装不上之确切报错原文、上述命令已执行之痕迹。报错须带原文，不得只言"环境有问题"。
+
+> 💡 **PowerShell 三忌**（Windows 下 DSH 工具终端为 PowerShell 时）：①`%USERPROFILE%` 是 cmd 语法，PS 中不展开——用 `$env:USERPROFILE`，接子路径时写 `${env:USERPROFILE}\.local\...`（花括号防 `.local` 被并入变量名）；②`export VAR=...` 是 bash 语法，PS 用 `$env:VAR = "..."`；③`python3` 常不存在，用 `python`。PowerShell 验证环境变量：`$env:MEMO_DIR`。
 
 ## 二、病根——不安全感驱动
 
@@ -251,7 +264,9 @@ store 执行后，立即 `recall "忆关键词" --limit 1` 核实已存。不核
 ```bash
 # 首行设变量（shell 持久，设一次即可）
 LOCAL_BASE=~/.local/share/yishi; YISHI=$LOCAL_BASE/scripts/memory_core.py; MEMO_DIR=$LOCAL_BASE/data
-# Windows（目录统一英文 yishi）：%USERPROFILE%\.local\share\yishi 替 ~/.local/share/yishi，python 替 python3
+# Windows PowerShell：$env:YISHI = "$env:USERPROFILE\.local\share\yishi\scripts\memory_core.py"; $env:MEMO_DIR = "$env:USERPROFILE\.local\share\yishi\data"
+# Windows cmd.exe：set YISHI=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py & set MEMO_DIR=%USERPROFILE%\.local\share\yishi\data
+# 目录统一英文 yishi；python3 仅 Linux/macOS，Windows 用 python（或 py -3）
 
 # store：内容为【位置参数放最后】（勿用 --content/--tags，此二参数不存在），关键字用 --keywords
 # 记忆自动生成 ≤10 字 title 供图谱节点标签，必要时可 --title "短标题" 覆盖

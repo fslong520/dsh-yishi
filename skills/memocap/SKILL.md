@@ -27,14 +27,14 @@ metadata:
 2. 数据目录 `~/.local/share/yishi/data` 存在且可写？
 3. Python 解释器可用？`memory_core.py` 能否运行？（Linux/macOS 用 `python3`，Windows 用 `python`；脚本不硬编码解释器）
 
-**环境自愈**：脚本报错（缺依赖/未初始化/模型缺失）时先自修再问人——`python3 ~/.local/share/yishi/scripts/install.py`（Windows: `python %USERPROFILE%\.local\share\yishi\scripts\install.py`），幂等一键装依赖+初始化+下模型；`--check` 复查「✓ 环境齐备」方止。仍败才报用户，附报错原文。
+**环境自愈**：脚本报错（缺依赖/未初始化/模型缺失）时先自修再问人——`python3 ~/.local/share/yishi/scripts/install.py`（Windows PowerShell: `python $env:USERPROFILE\.local\share\yishi\scripts\install.py`，cmd: `python %USERPROFILE%\.local\share\yishi\scripts\install.py`），幂等一键装依赖+初始化+下模型；`--check` 复查「✓ 环境齐备」方止。仍败才报用户，附报错原文。
 
 ## 路径与命令
 ```bash
 LOCAL_BASE=~/.local/share/yishi
 YISHI=$LOCAL_BASE/scripts/memory_core.py
 MEMO_DIR=$LOCAL_BASE/data
-# Windows：%USERPROFILE%\.local\share\yishi 替 ~/.local/share/yishi，python 替 python3
+# Windows：PowerShell 用 `$env:USERPROFILE`（接子路径写 `${env:USERPROFILE}\.local\...`），cmd 用 `%USERPROFILE%`；python 替 python3
 # store：内容为【位置参数放最后】（无 --content/--tags），关键字用 --keywords；title ≤10 字自动生成，可 --title 覆盖
 python3 $YISHI store --type <decision|task|preference|emotion|context|time|skill> --keywords "k1,k2" --emotion <0-1> "[完整内容]"
 # recall：检索/核实

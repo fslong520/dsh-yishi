@@ -79,7 +79,7 @@ metadata:
 PY=~/.local/share/yishi/scripts/memory_core.py
 MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
 # 注意：以下命令使用 $PY 与 $MEMO_DIR 变量，须先执行上方两行定义；或直接写全路径 python3 ~/.local/share/yishi/scripts/memory_core.py
-# Windows（中文路径易乱码）：PY=%USERPROFILE%\.local\share\yishi\scripts\memory_core.py，MEMO_DIR=%USERPROFILE%\.local\share\yishi\data，python 替 python3
+# Windows：PowerShell 用 `$env:USERPROFILE`（接子路径写 `${env:USERPROFILE}\.local\...` 防花括号吞点），cmd 用 `%USERPROFILE%`；python 替 python3
 
 初始化:    python3 $PY init
 存储记忆:  python3 $PY store "内容" --type task --emotion 0.8 [--scene 场景] [--activity-start 2025-05-01] [--activity-end 2025-05-10] [--force] [--merge-ids "旧ID1,旧ID2"]
@@ -192,6 +192,6 @@ MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
 脚本报错（缺依赖/未初始化/模型缺失）时，**AI 先自修再问人**，固定流程：
 
 1. 定解释器：`python3 --version` 不通则试 `python --version`（Windows 常见），再试 `py -3 --version`。
-2. 一键自愈（幂等）：`python3 ~/.local/share/yishi/scripts/install.py`（Windows: `python %USERPROFILE%\.local\share\yishi\scripts\install.py`）
+2. 一键自愈（幂等）：`python3 ~/.local/share/yishi/scripts/install.py`（Windows PS: `python $env:USERPROFILE\.local\share\yishi\scripts\install.py`；cmd: `python %USERPROFILE%\.local\share\yishi\scripts\install.py`）
 3. 分步兜底：`-m pip install -r requirements.txt` / `memory_core.py init` / `models-install.py`
 4. 仍败才报用户，附报错原文与已执行命令痕迹。

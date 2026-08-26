@@ -2,7 +2,7 @@
 
 **何时读**：用户消息以 `/忆时` 开头时。读此模块得命令构造、参数解析、回复风格。
 
-> ⚡ **解释器平台适配**：命令示例皆 `python3`（Linux/macOS）。**Windows 用 `python` 替换 `python3`**（或 `py -3`），路径 `~/.local/share/yishi` 换 `%USERPROFILE%\.local\share\yishi`。报错先走「环境自愈」节——`install.py` 一键装依赖/初始化/下模型，勿硬扛。
+> ⚡ **解释器平台适配**：命令示例皆 `python3`（Linux/macOS）。**Windows 用 `python` 替换 `python3`**（或 `py -3`）；路径 `~/.local/share/yishi` 换 `$env:USERPROFILE\.local\share\yishi`（PowerShell，接子路径用 `${env:USERPROFILE}\.local\...`）或 `%USERPROFILE%\.local\share\yishi`（cmd.exe）。报错先走「环境自愈」节——`install.py` 一键装依赖/初始化/下模型，勿硬扛。
 
 **用户以 `/忆时` 开头之消息，即进入快捷操作模式。** 此模式不执行常规对话流程（涌现检索等），径直解析命令执行。
 

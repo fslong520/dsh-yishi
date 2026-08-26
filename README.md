@@ -49,7 +49,9 @@ pnpm add file:~/Documents/yishi
 ```bash
 # 一键全流程（依赖 + 初始化 + 模型，幂等，可反复跑）
 python3 ~/.local/share/yishi/scripts/install.py
-# Windows（无 python3 时用 python，脚本不硬编码解释器）
+# Windows PowerShell（python 替 python3）
+python $env:USERPROFILE\.local\share\yishi\scripts\install.py
+# Windows cmd.exe
 python %USERPROFILE%\.local\share\yishi\scripts\install.py
 
 # 只检查缺什么
@@ -64,8 +66,8 @@ python3 ~/.local/share/yishi/scripts/install.py --check
 
 ```bash
 python3 ~/.local/share/yishi/scripts/models-install.py
-# Windows
-python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
+# Windows PowerShell / cmd.exe（python 替 python3，$env:USERPROFILE 或 %USERPROFILE% 替 ~）
+python $env:USERPROFILE\.local\share\yishi\scripts\models-install.py
 ```
 
 ## 环境变量
@@ -81,7 +83,7 @@ python %USERPROFILE%\.local\share\yishi\scripts\models-install.py
 ```bash
 PY=~/.local/share/yishi/scripts/memory_core.py
 export MEMO_DIR=~/.local/share/yishi/data
-# Windows：%USERPROFILE%\.local\share\yishi 替 ~/.local/share/yishi，python 替 python3
+# Windows：PowerShell 用 `$env:USERPROFILE` + 花括号 `${env:USERPROFILE}`，cmd 用 `%USERPROFILE%`；python 替 python3
 
 python3 $PY recall "关键词" --limit 5
 python3 $PY store --type decision --keywords "k" --emotion 0.5 "内容"

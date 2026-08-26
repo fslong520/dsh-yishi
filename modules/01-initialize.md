@@ -13,7 +13,9 @@
 ```bash
 # Linux/macOS
 python3 ~/.local/share/yishi/scripts/memory_core.py init
-# Windows（无 python3 时用 python）
+# Windows PowerShell（无 python3 时用 python；$env:USERPROFILE 替 ~，花括号防吞点）
+python $env:USERPROFILE\.local\share\yishi\scripts\memory_core.py init
+# Windows cmd.exe
 python %USERPROFILE%\.local\share\yishi\scripts\memory_core.py init
 # 推荐一键自愈（依赖+初始化+模型，幂等）
 python3 ~/.local/share/yishi/scripts/install.py

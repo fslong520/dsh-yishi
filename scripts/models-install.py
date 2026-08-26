@@ -5,11 +5,10 @@
   - onnx/model.onnx（~400MB，bge 768 维，中文语义检索）
   - config.json tokenizer.json special_tokens_map.json tokenizer_config.json vocab.txt
 
-源：hf-mirror（Xenova/bge-base-zh-v1.5），断点续传由 curl --retry 兜底。
+源：hf-mirror（Xenova/bge-base-zh-v1.5），urllib 内建下载（免 curl 依赖，Windows PowerShell/cmd 皆可），失败重试 4 次。
 幂等：model.onnx 已存在且大于 100MB 则跳过；并发：锁文件防重复下载。
 """
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -73,13 +72,25 @@ def _unlock() -> None:
 
 
 def _fetch(url: str, dest: Path) -> None:
+    """urllib 下载（内建，免 curl 依赖——PowerShell 5.1 无 curl.exe、cmd 亦未必有）。"""
+    import urllib.request
     print(f"↓ {dest.name} ← {url}")
-    r = subprocess.run(
-        ["curl", "-sL", "--retry", "3", "--connect-timeout", "30", "-o", str(dest), url],
-        check=False,
-    )
-    if r.returncode != 0:
-        raise RuntimeError(f"curl 失败: {url} (rc={r.returncode})")
+    last_err = None
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as resp, open(dest, "wb") as out:
+                while True:
+                    chunk = resp.read(1 << 16)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+            if dest.stat().st_size > 0:
+                return
+            last_err = RuntimeError("下载为空")
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+        print(f"  ⚠️ 第 {attempt + 1} 次失败: {last_err}，重试……", file=sys.stderr)
+    raise RuntimeError(f"下载失败: {url} ({last_err})")
 
 
 def main() -> int:
