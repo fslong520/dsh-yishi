@@ -37,7 +37,7 @@ REQ_FILE = SCRIPT_DIR / "requirements.txt"
 CORE = SCRIPT_DIR / "memory_core.py"
 MODELS_INSTALL = SCRIPT_DIR / "models-install.py"
 DATA_DIR = Path(
-    os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or str(LOCAL_BASE / "data")
+    os.environ.get("MEMO_DIR") or str(LOCAL_BASE / "data")
 )
 MODEL_DIR = LOCAL_BASE / "models" / "bge-base-zh-v1.5" / "onnx" / "model.onnx"
 

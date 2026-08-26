@@ -83,10 +83,10 @@ except ImportError:
 # YISHI_DATA_DIR 可覆盖根目录（与 models-install.py / install.py 同源解析，防路径错位）。
 LOCAL_BASE = os.environ.get("YISHI_DATA_DIR") or os.path.join(Path.home(), ".local", "share", "yishi")
 
-DATA_DIR = os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or os.path.join(LOCAL_BASE, "data")
+DATA_DIR = os.environ.get("MEMO_DIR") or os.path.join(LOCAL_BASE, "data")
 
 if os.environ.get("YISHI_DATA_DIR") and not os.environ.get("MEMO_DIR"):
-    print("⚠️ YISHI_DATA_DIR 已更名 MEMO_DIR，请更新调用", file=sys.stderr)
+    print("ℹ️ 已设 YISHI_DATA_DIR（根目录），数据存于其下 data/；如欲指定数据目录请用 MEMO_DIR", file=sys.stderr)
 
 SKILL_MODEL_BASE = os.path.join(LOCAL_BASE, "models")
 

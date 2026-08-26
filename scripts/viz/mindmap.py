@@ -21,7 +21,7 @@ CORE = VIZ_DIR.parent / "memory_core.py"
 TPL = VIZ_DIR / "mindmap_template.html"
 D3_LIB = VIZ_DIR / "d3" / "d3.min.js"   # vendored d3（MPE graph-view 同款力导向图）
 LOCAL_BASE = Path.home() / ".local" / "share" / "yishi"
-DATA_DIR = os.environ.get("MEMO_DIR") or os.environ.get("YISHI_DATA_DIR") or str(LOCAL_BASE / "data")
+DATA_DIR = os.environ.get("MEMO_DIR") or str(LOCAL_BASE / "data")
 
 
 def _inline_lib():
