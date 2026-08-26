@@ -164,8 +164,16 @@ export function apply(ctx) {
 						}
 					},
 				);
-			// 3b. 模型保障：缺失 → 后台下载（install.py 幂等，跳过已装依赖）
+			// 3b. 模型保障：缺失 → 后台下载（install.py 幂等，跳过已装依赖）；
+			//     模型就绪后链跑 --init-only 建 data（init 需加载 embedding，须在模型后）
 			const modelFile = join(dataBase, 'models', 'bge-base-zh-v1.5', 'onnx', 'model.onnx');
+			const initData = () =>
+				runPython(
+					[installPy, '--init-only'],
+					join(dataBase, 'install.log'),
+					'init-data',
+					(code) => ctx.logger?.info?.(`${name}: 数据初始化退出码 ${code}`),
+				);
 			if (!existsSync(modelFile)) {
 				depsCheck();
 				ctx.logger?.info?.(
@@ -175,10 +183,14 @@ export function apply(ctx) {
 					[installPy, '--model-only'],
 					join(dataBase, 'install.log'),
 					'model-download',
-					(code) => ctx.logger?.info?.(`${name}: 模型下载退出码 ${code}`),
+					(code) => {
+						ctx.logger?.info?.(`${name}: 模型下载退出码 ${code}`);
+						initData(); // 模型就绪后再建 data
+					},
 				);
 			} else {
 				depsCheck();
+				initData();
 			}
 			// 3c. opencode 双栖配置：幂等合并 opencode.json(.c) 的 instructions——
 			// 指到插件同步出的 yishi-instructions.md，免用户手编 JSON。

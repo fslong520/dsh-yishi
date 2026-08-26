@@ -31,6 +31,16 @@ dsh plugin --profile web add @fslong/dsh-yishi
 # 重启 DSH 生效
 ```
 
+**装后即用，零手动配置。** 插件 apply 自动完成四事：同步脚本至 `~/.local/share/yishi/`、注入记忆指令、注册 memocap 技能、后台装依赖/下模型/配 opencode 外挂提示词。
+
+**验证安装：**
+```bash
+python3 ~/.local/share/yishi/scripts/install.py --check
+# 期望输出：Python ✓ 依赖 ✓ 数据目录 ✓ 模型 ✓ opencode 配置 ✓ 环境齐备
+```
+
+**若 AI 报"环境用不起来"**（缺依赖/未初始化/模型缺失）：AI 会自行运行自愈脚本修复；亦可手动 `python3 ~/.local/share/yishi/scripts/install.py`（幂等，可反复跑）。
+
 ### 本地开发
 
 ```bash
