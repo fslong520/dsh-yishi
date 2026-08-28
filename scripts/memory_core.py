@@ -556,6 +556,35 @@ def cmd_store(args):
         except Exception:
             cluster = []
 
+    # 候选父节点检索：查相似度稍低（0.45~0.70）的容器类节点，供 AI 决定是否 --parent 挂载
+    # 树型存储：新记忆可能属于某主题树（入口/项目/技能），挂为子节点而非平铺
+    parent_candidates = []
+    if not getattr(args, "force", False) and not getattr(args, "parent", None):
+        try:
+            pq = mem_col.query(query_texts=[args.content], n_results=8)
+            if pq["ids"] and pq["ids"][0]:
+                for j in range(len(pq["ids"][0])):
+                    pmid = pq["ids"][0][j]
+                    pdist = pq["distances"][0][j] if pq["distances"] else 1.0
+                    psem = 1.0 - pdist
+                    # 容器特征：有子树（first_child）或 type=skill 或关键字含"入口/项目/技能"
+                    if 0.40 <= psem < MERGE_SIM_CLUSTER:
+                        try:
+                            pmm = mem_col.get(ids=[pmid])["metadatas"]
+                            if not pmm or pmm[0] is None:
+                                continue
+                            pmeta = pmm[0]
+                            pfc = (pmeta.get("first_child", "") or "")
+                            pkws = (pmeta.get("keywords", "") or "")
+                            is_container = bool(pfc) or pmeta.get("type") == "skill" or any(
+                                k in pkws for k in ("入口", "项目", "技能", "topic", "目录"))
+                            if is_container:
+                                parent_candidates.append((pmid, psem))
+                        except Exception:
+                            pass
+        except Exception:
+            parent_candidates = []
+
     # AI 决策：合并（--merge-ids）→ 删指定旧记忆（可 0 条=空串），存合并版为新条目
     # 统一路径：选 N 条（0~N）→ 删 N 条 → 并（所选旧内容+新内容，AI 手写综合版）
     if args.merge_ids is not None:
@@ -600,6 +629,19 @@ def cmd_store(args):
         print(f"   ③ 并：综合版=所选旧内容+新内容，AI 手写合并后存入（选 0 条=新内容原样存）")
         print(f"   示例：store \"<综合合并版>\" --merge-ids \"ID1,ID2\"（选2条）")
         print(f"   示例：store \"<新内容>\" --merge-ids \"\"（选0条）")
+        # 候选父节点：树型存储提示
+        if parent_candidates:
+            parent_candidates.sort(key=lambda x: -x[1])
+            print(f"\n  🔗 可选父节点（树型存储）：本内容或属某主题树，可挂为子节点：")
+            for pmid, psem in parent_candidates[:3]:
+                try:
+                    pmm = mem_col.get(ids=[pmid])["metadatas"]
+                    pmeta = pmm[0] if pmm and pmm[0] else {}
+                    ptitle = _tree_label("", pmeta) or pmid[:8]
+                    ptype = pmeta.get("type", "")
+                except Exception:
+                    ptitle, ptype = pmid[:8], ""
+                print(f"     └─ [{pmid}] {ptitle}（{ptype}，相似{psem:.0%}）→ 挂载: store \"<内容>\" --parent {pmid}")
         return None
 
     mem_id = str(uuid.uuid4())
@@ -678,6 +720,97 @@ def cmd_store(args):
         print(f"  关键字: {metadata['keywords']}")
     print(f"  已自动备份到: {BACKUP_FILE}")
     return mem_id
+
+
+# ========== 记忆树渲染（渐进式披露） ==========
+def _tree_label(doc, meta):
+    """节点标签：title 优先，无则取内容首段（≤10字）。"""
+    t = (meta.get("title", "") or "").strip()
+    if t:
+        return t[:12]
+    d = (doc or "").strip().replace("\n", " ")
+    return d[:10] + ("…" if len(d) > 10 else "")
+
+
+def _tree_lines(mem_col, node_id, prefix, is_last, full, depth, max_depth, seen, out):
+    """递归输出子树骨架（默认）/完整（full=True），渐进式披露。
+    out: 输出列表。返回子节点数（含孙代）。"""
+    g = mem_col.get(ids=[node_id])
+    if not g["ids"]:
+        return 0
+    doc = g["documents"][0] if g["documents"] else ""
+    meta = g["metadatas"][0] if g["metadatas"] else {}
+    label = _tree_label(doc, meta)
+    rc = int(meta.get("recall_count", 0) or 0)
+    # 收集子节点
+    children = []
+    fc = (meta.get("first_child", "") or "")
+    cur = fc
+    for _ in range(100):
+        if not cur or cur in seen:
+            break
+        cg = mem_col.get(ids=[cur])
+        if not cg["ids"]:
+            break
+        cmeta = cg["metadatas"][0] if cg["metadatas"] else {}
+        children.append((cur, cg["documents"][0] if cg["documents"] else "", cmeta))
+        cur = (cmeta.get("next_sibling", "") or "")
+    branch = "└─" if is_last else "├─"
+    if children:
+        n_child = len(children)
+        suffix = f" ({n_child}子)"
+    else:
+        suffix = ""
+    head = f"{prefix}{branch} [{node_id[:10]}] {label}{suffix} 🔥{rc}" if rc else f"{prefix}{branch} [{node_id[:10]}] {label}{suffix}"
+    out.append(head)
+    # 完整模式下，展示内容摘要（骨架模式不展示，渐进）
+    if full:
+        d = (doc or "").strip().replace("\n", " ")
+        if d:
+            out.append(f"{prefix}{'   ' if is_last else '│  '}   📝 {d[:40]}{'…' if len(d) > 40 else ''}")
+    # 递归子节点
+    child_prefix = prefix + ("   " if is_last else "│  ")
+    total = 0
+    if depth < max_depth:
+        for i, (cid, cdoc, cmeta) in enumerate(children):
+            seen.add(cid)
+            total += _tree_lines(mem_col, cid, child_prefix, i == len(children) - 1,
+                                 full, depth + 1, max_depth, seen, out) + 1
+    else:
+        total = len(children)
+    return total
+
+
+def _render_tree(mem_col, root_id, full=False, max_depth=3):
+    """渲染某节点子树。返回 (lines, node_count)。"""
+    g = mem_col.get(ids=[root_id])
+    if not g["ids"]:
+        return [], 0
+    doc = g["documents"][0] if g["documents"] else ""
+    meta = g["metadatas"][0] if g["metadatas"] else {}
+    out = []
+    out.append(f"🌳 树 [{root_id[:10]}] {_tree_label(doc, meta)}")
+    children = []
+    fc = (meta.get("first_child", "") or "")
+    cur = fc
+    for _ in range(100):
+        if not cur:
+            break
+        cg = mem_col.get(ids=[cur])
+        if not cg["ids"]:
+            break
+        cmeta = cg["metadatas"][0] if cg["metadatas"] else {}
+        children.append((cur, cg["documents"][0] if cg["documents"] else "", cmeta))
+        cur = (cmeta.get("next_sibling", "") or "")
+    seen = {root_id}
+    total = 0
+    if children:
+        out.append("    ├── 层级：")
+        for i, (cid, cdoc, cmeta) in enumerate(children):
+            seen.add(cid)
+            total += _tree_lines(mem_col, cid, "    ", i == len(children) - 1,
+                                 full, 0, max_depth, seen, out) + 1
+    return out, total
 
 
 # ========== recall ==========
@@ -1003,6 +1136,22 @@ def cmd_recall(args):
                     _hint = " ❄️根节点少被检索，AI 可考虑 demote 下沉（--parent 指定新父）"
                 if _role != "🌿根" or _fc or _hint:
                     print(f"     │ 🏔 层级: {_role} 深度{_depth} 子树{'有' if _fc else '无'} 检索{_rc}次{_hint}")
+                # 祖先链回溯（面包屑：根→枝→叶，渐进式披露的上下文锚点）
+                if _pid:
+                    _chain = []
+                    _tmp2 = _pid
+                    for _ in range(30):
+                        if not _tmp2:
+                            break
+                        _am = mem_col.get(ids=[_tmp2])["metadatas"]
+                        if not _am or _am[0] is None:
+                            break
+                        _al = _tree_label("", _am[0]) or _tmp2[:8]
+                        _chain.append(_al)
+                        _tmp2 = _am[0].get("parent_id", "") or ""
+                    if _chain:
+                        _crumb = " ← ".join(reversed(_chain))
+                        print(f"     │ 🧭 路径: {_crumb}")
         except Exception:
             pass
 
@@ -1039,40 +1188,18 @@ def cmd_recall(args):
             print(f"     │   判同主题？→ 是(可合并，--merge-ids 删旧存新) | 否(机械存储，--force)")
             print(f"     │   ⚡ 合并用 ID（完整，勿截断）：{item['id']}")
 
-        # 子树展示：命中节点若有子链（链式前向星），沿 first_child → next_sibling 输出
+        # 记忆树（渐进式披露）：默认骨架（title 树）；--tree 完整（含内容摘要，--depth 控深度）
         try:
             _hm = mem_col.get(ids=[item["id"]])["metadatas"]
             if _hm and _hm[0] is not None:
                 _fc = (_hm[0].get("first_child", "") or "")
                 if _fc:
-                    print(f"     │ 🌳 子树（{item['id'][:12]} 之下，链式前向星）：")
-                    _cur = _fc
-                    _depth = 0
-                    while _cur and _depth < 50:
-                        _cm = mem_col.get(ids=[_cur])
-                        if not _cm["ids"]:
-                            break
-                        _cdoc = _cm["documents"][0] if _cm["documents"] else ""
-                        _cmeta = _cm["metadatas"][0] if _cm["metadatas"] else {}
-                        _ct = _cdoc[:44] + ("…" if len(_cdoc) > 44 else "")
-                        print(f"     │    ├─ [{_cur[:12]}] {_ct}")
-                        # 孙代（子节点的子）缩进递归一层
-                        _cfc = (_cmeta.get("first_child", "") or "") if _cmeta else ""
-                        if _cfc:
-                            _gcur = _cfc
-                            _gd = 0
-                            while _gcur and _gd < 50:
-                                _gm = mem_col.get(ids=[_gcur])
-                                if not _gm["ids"]:
-                                    break
-                                _gdoc = _gm["documents"][0] if _gm["documents"] else ""
-                                _gt = _gdoc[:40] + ("…" if len(_gdoc) > 40 else "")
-                                print(f"     │    │  └─ [{_gcur[:12]}] {_gt}")
-                                _gm2 = _gm["metadatas"][0] if _gm["metadatas"] else {}
-                                _gcur = (_gm2.get("next_sibling", "") or "") if _gm2 else ""
-                                _gd += 1
-                        _cur = (_cmeta.get("next_sibling", "") or "") if _cmeta else ""
-                        _depth += 1
+                    _tl, _tn = _render_tree(mem_col, item["id"], full=getattr(args, "tree", False),
+                                            max_depth=getattr(args, "depth", 3) or 3)
+                    if _tl:
+                        print(f"     │ 🌳 {_tl[0]}（共{_tn}子节点，--tree 展开内容）")
+                        for _line in _tl[1:]:
+                            print(f"     │ {_line}")
         except Exception:
             pass
         print()
@@ -1838,6 +1965,8 @@ def main():
     p.add_argument("--max-chars-per-item", type=int, default=0, help="单条注入字符上限（0=不限）")
     p.add_argument("--max-total-chars", type=int, default=0, help="总注入字符预算（0=不限）")
     p.add_argument("--judge", action="store_true", help="判定模式：输出每条全文+相似度+类型+关键词+创建日，供 AI 判同主题（值必存第一段用）")
+    p.add_argument("--tree", action="store_true", help="记忆树完整模式：递归展示子树含内容摘要（默认仅骨架 title 树，渐进式披露）")
+    p.add_argument("--depth", type=int, default=3, help="记忆树展开深度（默认3层，--tree 时有效）")
     p.set_defaults(func=cmd_recall)
 
     p = sub.add_parser("update", help="更新记忆")
