@@ -543,7 +543,8 @@ def cmd_store(args):
     #   能合并 → --merge-ids "id1,id2" 删旧存新（内容=综合合并版）；
     #   不能 → 机械存储兜底（或 --force 静默）。决策权在 AI，脚本不自动拼不自动删。
     cluster = []
-    if not getattr(args, "force", False):
+    # 有 --parent（显式挂载）或 --force 时，跳过候选检查（父节点已明确，不合并）
+    if not getattr(args, "force", False) and not getattr(args, "parent", None):
         try:
             cq = mem_col.query(query_texts=[args.content], n_results=3)
             if cq["ids"] and cq["ids"][0]:
@@ -590,8 +591,34 @@ def cmd_store(args):
     if args.merge_ids is not None:
         ids_to_merge = [i.strip() for i in args.merge_ids.split(",") if i.strip()]
         dropped = 0
+        inherit_parent = None
         for mid in ids_to_merge:
             try:
+                # 合并删节点前：若该节点有子节点（first_child），先迁移子链到其父下，
+                # 避免删父后子链悬挂（孤儿节点）
+                try:
+                    _og = mem_col.get(ids=[mid])
+                    if _og["metadatas"] and _og["metadatas"][0]:
+                        _om = _og["metadatas"][0]
+                        _ofc = (_om.get("first_child", "") or "")
+                        _opid = (_om.get("parent_id", "") or "")
+                        if _ofc:
+                            # 第一个子节点挂到祖父下（或升根）
+                            if _opid:
+                                _link_as_child(mem_col, _ofc, _opid)
+                            else:
+                                _mm = mem_col.get(ids=[_ofc])["metadatas"]
+                                if _mm and _mm[0] is not None:
+                                    _m2 = dict(_mm[0])
+                                    _m2["parent_id"] = ""
+                                    mem_col.update(ids=[_ofc], metadatas=[_m2])
+                                    _append_backup(_ofc, None, _m2)
+                            print(f"  ↪ 子链已迁移：{_ofc[:12]} 重挂（原父 {mid[:12]} 被合并删除）")
+                        # 记录被删节点父链：合并产物继承（保持树形层级）
+                        if _opid and inherit_parent is None:
+                            inherit_parent = _opid
+                except Exception:
+                    pass
                 mem_col.delete(ids=[mid])
                 dropped += 1
             except Exception:
@@ -601,6 +628,13 @@ def cmd_store(args):
         mem_col.add(documents=[args.content], metadatas=[metadata], ids=[new_mid])
         _update_meta_total(client, "total_memories", 1)
         _append_backup(new_mid, args.content, metadata)
+        # 合并产物继承被删节点的父（保持树形：产物回到原层级）
+        if inherit_parent:
+            try:
+                _link_as_child(mem_col, new_mid, inherit_parent)
+                print(f"  ↪ 合并产物继承父链：{new_mid[:12]} 挂到 {inherit_parent[:12]} 下")
+            except Exception:
+                pass
         if dropped:
             print(f"✅ AI 有机合并：已删 {dropped} 条旧记忆，综合版存为新条目")
         else:
@@ -609,7 +643,7 @@ def cmd_store(args):
 
     # 有候选 → 先判后存：挂起不落库，打印候选（内容全量，最多 3 条最相关），等 AI 决策
     # 脚本不代决：仅提示。AI 读候选后统一走 --merge-ids（N 可 0=空串）
-    if cluster and not getattr(args, "force", False):
+    if cluster and not getattr(args, "force", False) and not getattr(args, "parent", None):
         cluster.sort(key=lambda x: -x[1])
         shown = cluster[:MERGE_SHOW_MAX]
         print(f"🔎 发现语义相似候选 {len(cluster)} 条（≥{MERGE_SIM_CLUSTER:.0%}），请 AI 读取判断（最相关 {len(shown)} 条）：")
@@ -1306,17 +1340,32 @@ def _link_as_child(mem_col, mem_id, new_parent_id):
         _append_backup(new_parent_id, None, p_meta)
     else:
         cur = fc
+        prev = None
         for _ in range(50):
-            cm = mem_col.get(ids=[cur])["metadatas"]
-            if not cm or cm[0] is None:
+            cm = mem_col.get(ids=[cur])
+            if not cm["ids"]:
+                # 断链容错：cur 指向的节点不存在（历史删除遗留）
+                # 若 prev 存在 → prev.next_sibling = mem_id；否则父 first_child 直接指向 mem_id
+                if prev:
+                    pm2 = mem_col.get(ids=[prev])["metadatas"]
+                    if pm2 and pm2[0] is not None:
+                        pm2m = dict(pm2[0])
+                        pm2m["next_sibling"] = mem_id
+                        mem_col.update(ids=[prev], metadatas=[pm2m])
+                        _append_backup(prev, None, pm2m)
+                else:
+                    p_meta["first_child"] = mem_id
+                    mem_col.update(ids=[new_parent_id], metadatas=[p_meta])
+                    _append_backup(new_parent_id, None, p_meta)
                 break
-            cm_meta = dict(cm[0])
+            cm_meta = dict(cm["metadatas"][0])
             ns = cm_meta.get("next_sibling", "") or ""
             if not ns:
                 cm_meta["next_sibling"] = mem_id
                 mem_col.update(ids=[cur], metadatas=[cm_meta])
                 _append_backup(cur, None, cm_meta)
                 break
+            prev = cur
             cur = ns
     # 设本节点 parent_id（保留其原 next_sibling 语义：上浮时本节点子链随之，下沉时子链保持）
     mm = mem_col.get(ids=[mem_id])["metadatas"]
