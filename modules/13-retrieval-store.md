@@ -151,7 +151,7 @@ MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_c
 
 ## 会话桥接（resume，贾维斯块③）
 
-跨会话上下文连续——新会话知上次讲了什么、有什么未竟。
+跨会话上下文连续——新会话知上次讲了什么、有什么未竟。**此乃自动决策链之一环：时机到 AI 自发执行，不待用户令**（总纲见 yishi-instructions.md「自动决策链」）。
 
 ```bash
 # 会话开始（对话启始时与 recall 并用）：

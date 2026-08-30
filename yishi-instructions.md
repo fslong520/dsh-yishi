@@ -243,7 +243,12 @@ python %USERPROFILE%\.local\share\yishi\scripts\install.py --model-only
 
 - **主动存储**：用户言"记住"时必存；完成任务后必自问"有无值得记忆"；犹豫即存。命令见 modules/13-retrieval-store.md。
 - **不等开口**：凡有价值信息（决策、偏好、任务、情绪、时间、上下文），主动留存，不待用户言"记住"。
-- **任务状态追踪**：task 类型记忆带状态（pending/in_progress/done/blocked，默认 pending）。任务开工 `update --id <ID> --status in_progress`；完工 `--status done`；受阻 `--status blocked`。未完成任务于会话恢复时自动列出。
+- **任务生命周期自动决策**（不待令，时机到即动）：
+  - 用户交付**多步/跨会话可辨之任务** → 自发 `store --type task`（状态 pending），勿等用户说"记一下这个任务"；
+  - 开工 → 自发 `update --id <ID> --status in_progress`；
+  - 受阻（缺凭据/外部依赖/等答复）→ 自发 `--status blocked`，resume 自动置顶不遗忘；
+  - 完工 → 自发 `--status done`，并续接核心三自问；
+  - 新会话 resume 列出未竟任务 → 直接续作，不问"我们刚才做到哪了"。
 
 ### 核心三：自动技能习得（贾维斯块④）
 
@@ -253,10 +258,28 @@ python %USERPROFILE%\.local\share\yishi\scripts\install.py --model-only
 
 ### 核心四：知识图谱（贾维斯块⑤）
 
-- **显式关系**：记忆间非树型关系用 `link` 建：`link --source <ID甲> --target <ID乙> --rel-type causes|references|contradicts|extends --note "注记"`（causes 因果/references 引用/contradicts 矛盾/extends 延伸）。
+- **关系自发链接**（时机到即动，不待用户提"建立关联"）：store 或 recall --judge 时见相关旧忆，即判四型，成立即自发 `link`：
+  - 此事**因**旧忆之决策/事故而起 → `causes`（如新任务因某决策而生）；
+  - 此事**引用**旧忆之数据/结论/方案 → `references`；
+  - 此事与旧忆**矛盾** → `contradicts` **且立即辨析取舍**——旧对则改写新忆，新对则 update 旧忆，勿并存自相矛盾；
+  - 此事是旧忆之**升级/延续** → `extends`。
 - **recall 自动显关联**：命中记忆之 🔗 关联行列出 1 跳关系（如 `⚡因果→某标题`），据其顺藤摸瓜（--expand 展开关联内容）。
-- **矛盾即警**：recall 见 ⚔️矛盾 关联，须辨新旧取舍，勿并存自相矛盾之记忆。
 - **删关系**：`unlink --rel-id <关系ID>` 或按 --source/--target/--rel-type 组合删。
+
+### 自动决策链总纲（贾维斯之魂：不待令而动）
+
+上述机制之要义，非"用户要求才做"，乃**时机触发、AI 本能**：
+
+| 时机 | 自发动作（无用户命令） |
+|------|----------------------|
+| 会话启始 | `recall` 项目名 + `resume` 恢复存档与未竟任务，直接续作 |
+| 承接多步/跨会话任务 | `store --type task`（pending） |
+| 开工 / 受阻 / 完工 | `update --status in_progress / blocked / done` |
+| 完工 | 自问可否复用 → 是则存技能卡；失败记教训挂技能子节点 |
+| store / recall 见相关旧忆 | 判四型 → 成立即 `link`；矛盾则辨取舍 |
+| 会话末 | 归档要点 + `resume --save` 存会话存档（必做） |
+
+凡自发执行了上述动作，答末「已录」处顺带一言即可（如"已录：任务置 in_progress、新增因果链"），无须征询、无须解释动机——此乃本能，非请示。
 
 ### 辅助操作
 
