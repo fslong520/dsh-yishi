@@ -73,6 +73,14 @@ recall "关键词" --limit 3
 - "已录。"
 - "无甚要紧，不存。"
 
+### 会话存档（resume --save，必做）
+归档之末，必存会话存档（会话桥接，贾维斯块③）：
+```bash
+python3 $YISHI resume --save "本轮要点：做了什么+关键决策+未竟事项+下次从哪续" --title "短标题"
+```
+- 存档 type=session，下次会话始 `resume` 自动恢复。
+- 未竟事项写入存档 + 任务以 `update --status` 同步（pending/in_progress/blocked），下次会话 resume 列出。
+
 ### 重要提醒
 - **内容必自足**：一条记忆须含将来再用时所需的全部细节。不可依赖原对话上下文。摘要式记忆＝白存。
 - **充实为上**：非回忆录，乃工具。存时不省内容，亦不鲁迅风。保证 future-self 读之可直用。

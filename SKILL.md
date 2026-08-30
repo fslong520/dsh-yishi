@@ -45,11 +45,12 @@ metadata:
 |------|------|-------------|
 | emotion | 情绪事件（开心、愤怒、悲伤） | |
 | decision | 用户做出的决策 | 🟠 |
-| task | 任务/待办 | 🟡 |
+| task | 任务/待办（含状态 pending/in_progress/done/blocked） | 🟡 |
 | time | 时间敏感信息（截止日期） | 🔴 |
 | preference | 用户偏好/习惯 | 🟢 |
 | context | 上下文/背景信息 | 🟡 |
 | skill | 技能——用户教AI的工作流，Gene结构化存储 | 🟠 |
+| session | 会话存档（resume --save 生成，会话桥接用） | |
 
 ## 按需读取（渐进式披露核心）
 
@@ -57,7 +58,7 @@ metadata:
 
 | 场景 | 读模块 |
 |------|--------|
-| 对话启始、每言必检、主动存储、检索升级、决策前置 | modules/13-retrieval-store.md |
+| 对话启始、每言必检、主动存储、检索升级、决策前置、会话桥接(resume)、知识图谱(link)、自动技能习得 | modules/13-retrieval-store.md |
 | 用户描述工作流（教AI流程）、skill记忆检索命中 | modules/07-skill-memory.md |
 | 对话结束归档、仅输入 `/忆时` 会话整理、每满5轮定期提取 | modules/09-archiving.md |
 | 用户输入 `/忆时 ...`（命令构造/回复风格） | modules/11-quick-commands.md |
@@ -85,6 +86,11 @@ MEMO_DIR=~/.local/share/yishi/data    # 所有命令必设
 存储记忆:  python3 $PY store "内容" --type task --emotion 0.8 [--scene 场景] [--activity-start 2025-05-01] [--activity-end 2025-05-10] [--force] [--merge-ids "旧ID1,旧ID2"]
 检索记忆:  python3 $PY recall "查询" [--limit 3 --expand] [--no-embed] [--max-total-chars 600]  # 向量语义相似<0.70 者自动过滤不展示
 语义合并:  python3 $PY merge --id <锚ID> [--threshold 0.68] [--keyword 过滤] [--content "权威版" --apply]
+会话桥接:  python3 $PY resume                     # 会话始：上次存档+未完成任务
+会话存档:  python3 $PY resume --save "本轮要点" --title "短标题"   # 会话末必做
+任务状态:  python3 $PY update --id <任务ID> --status in_progress   # pending/in_progress/done/blocked
+知识图谱:  python3 $PY link --source <ID甲> --target <ID乙> --rel-type causes --note "注记"
+           # rel-type: causes⚡因果 / references📎引用 / contradicts⚔️矛盾 / extends🌱延伸；unlink 删
 封胶囊:   python3 $PY capsule lock --unlock-at "2026-12-31"
 查看胶囊:  python3 $PY capsule list
 导入:      python3 $PY import-file file.md --format markdown

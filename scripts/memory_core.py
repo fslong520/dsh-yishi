@@ -530,6 +530,13 @@ def cmd_store(args):
         if "skill" not in (args.keywords or ""):
             args.keywords = (args.keywords + ",skill") if args.keywords else "skill"
         metadata["keywords"] = args.keywords
+    # 任务状态（贾维斯块③）：task 默认 pending；--status 显式指定
+    if getattr(args, "status", None):
+        if args.status not in TASK_STATUSES:
+            print(f"错误: --status 须为 {'/'.join(TASK_STATUSES)}"); sys.exit(1)
+        metadata["status"] = args.status
+    elif mem_type == "task":
+        metadata["status"] = "pending"
     # 传播 --skill-* 参数到 metadata
     for key in ("skill_name", "skill_summary", "skill_strategy", "skill_avoid",
                  "skill_triggers", "skill_input", "skill_output", "skill_version",
@@ -537,6 +544,24 @@ def cmd_store(args):
         val = getattr(args, key.replace("-", "_"), None)
         if val is not None:
             metadata[key] = val
+
+    # ── 技能同名查重（贾维斯块④：自动习得之版本化入口）──
+    # 同名技能已存 → 打印已有版本，供 AI 决定 --merge-ids 合并升级（宜 --skill-version 递增），
+    # 不阻断存储（AI 读完决策）。
+    if mem_type == "skill" and (getattr(args, "skill_name", None) or "").strip():
+        try:
+            dup = mem_col.get(where={"$and": [{"type": "skill"},
+                                              {"skill_name": args.skill_name.strip()}]})
+            if dup["ids"]:
+                print(f"⚠️ 已有同名技能「{args.skill_name}」{len(dup['ids'])} 条（宜合并升级，勿重复造轮）：")
+                for i in range(min(len(dup["ids"]), 3)):
+                    dm = dup["metadatas"][i] if dup["metadatas"] else {}
+                    dd = (dup["documents"][i] if dup["documents"] else "").replace("\n", " ")[:70]
+                    dv = dm.get("skill_version", "") or "?"
+                    print(f"   {i+1}. 🆔 {dup['ids'][i]}  v{dv}  {dd}")
+                print(f"   → 合并升级：store \"<新版全文>\" --type skill --merge-ids \"<上述ID>\" --skill-version <递增版本>")
+        except Exception:
+            pass
 
     # ── 语义查簇：检索相似 ≥70% 候选，供 AI 读取决策 ──
     # 2026-08-22 定稿：有机合并=AI 读取候选原文，判断能否综合成一条。
@@ -1189,6 +1214,34 @@ def cmd_recall(args):
         except Exception:
             pass
 
+        # 🔗 关联链（知识图谱，贾维斯块⑤）：手动关系 1 跳提示（双向匹配，不展开内容）
+        try:
+            _rels = []
+            for _r, _dir in ((rel_col.get(where={"source": item["id"]}), "out"),
+                             (rel_col.get(where={"target": item["id"]}), "in")):
+                if not _r["ids"]:
+                    continue
+                for _j in range(len(_r["ids"])):
+                    _rm = _r["metadatas"][_j] if _r["metadatas"] else {}
+                    _partner = _rm.get("target") if _dir == "out" else _rm.get("source")
+                    if not _partner:
+                        continue
+                    _rt = _rm.get("rel_type") or "related"
+                    _rn = _rm.get("note", "") or ""
+                    _rels.append((_rt, _partner, _dir, _rn, _r["ids"][_j]))
+            if _rels:
+                _parts = []
+                for _rt, _pid, _dir, _rn, _rid in _rels[:3]:
+                    _pm2 = mem_col.get(ids=[_pid])["metadatas"]
+                    _pt = (_pm2[0].get("title", "") if _pm2 and _pm2[0] else "") or _pid[:8]
+                    _arrow = "→" if _dir == "out" else "←"
+                    _lbl = REL_TYPE_LABEL.get(_rt, _rt)
+                    _parts.append(f"{_lbl}{_arrow}{_pt}" + (f"（{_rn}）" if _rn else ""))
+                _more = f" 等{len(_rels)}条" if len(_rels) > 3 else ""
+                print(f"     │ 🔗 关联: {' | '.join(_parts)}{_more}")
+        except Exception:
+            pass
+
         # 技能卡：type=skill 时展示结构化字段，供 AI 直接按技能执行
         if item.get("type") == "skill":
             try:
@@ -1263,6 +1316,11 @@ def cmd_update(args):
     if args.scene is not None: meta["scene"] = args.scene
     if args.activity_start is not None: meta["activity_start"] = args.activity_start
     if args.activity_end is not None: meta["activity_end"] = args.activity_end
+    if getattr(args, "status", None) is not None:
+        if args.status not in TASK_STATUSES:
+            print(f"错误: --status 须为 {'/'.join(TASK_STATUSES)}"); sys.exit(1)
+        meta["status"] = args.status
+        print(f"   任务状态 → {STATUS_EMOJI.get(args.status,'')} {args.status}")
     mem_col.update(ids=[args.id], documents=[content], metadatas=[meta])
     _append_backup(args.id, content, meta)
     print(f"记忆已更新: {args.id}")
@@ -1599,6 +1657,147 @@ def cmd_delete(args):
     mem_col.delete(ids=[args.id])
     _update_meta_total(client, "total_memories", -1)
     print(f"记忆已删除: {args.id}")
+
+
+# ========== link / unlink（知识图谱：手动关系，贾维斯块⑤） ==========
+# relationships 集合双用：store 时自动语义关联（score=语义值）+ 手动关系（manual=true）。
+# 关系类型：causes（因果）/ references（引用）/ contradicts（矛盾）/ extends（延伸）。
+# 查询双向匹配（source 或 target），存一条即双向可见。
+REL_TYPES = ("causes", "references", "contradicts", "extends")
+REL_TYPE_LABEL = {"causes": "⚡因果", "references": "📎引用", "contradicts": "⚔️矛盾", "extends": "🌱延伸"}
+
+
+def cmd_link(args):
+    client = get_client()
+    mem_col = get_collection(client, "memories")
+    rel_col = get_collection(client, "relationships")
+    src, dst = args.source, args.target
+    for nid, label in ((src, "--source"), (dst, "--target")):
+        if not nid:
+            print(f"错误: 请提供 {label}"); sys.exit(1)
+        if not mem_col.get(ids=[nid])["ids"]:
+            print(f"错误: {label} 记忆不存在: {nid}"); sys.exit(1)
+    if src == dst:
+        print("错误: 不能链接记忆自身"); sys.exit(1)
+    if args.rel_type not in REL_TYPES:
+        print(f"错误: 关系类型须为 {'/'.join(REL_TYPES)}"); sys.exit(1)
+    rel_col.add(
+        documents=[f"{src}-{args.rel_type}->{dst}"],
+        metadatas=[{"source": src, "target": dst, "rel_type": args.rel_type,
+                    "note": args.note or "", "score": 1.0, "manual": "true",
+                    "created_at": _now().isoformat()}],
+        ids=[str(uuid.uuid4())],
+    )
+    _update_meta_total(client, "total_relationships", 1)
+    tag = REL_TYPE_LABEL[args.rel_type]
+    print(f"🔗 已建立关系 [{tag}]: {src[:8]}… → {dst[:8]}…")
+    if args.note:
+        print(f"   注: {args.note}")
+    print("   recall 时命中任一端即显示此关联（1 跳提示）")
+
+
+def cmd_unlink(args):
+    client = get_client()
+    rel_col = get_collection(client, "relationships")
+    removed = 0
+    if args.rel_id:
+        got = rel_col.get(ids=[args.rel_id])
+        if not got["ids"]:
+            print(f"错误: 关系不存在: {args.rel_id}"); sys.exit(1)
+        rel_col.delete(ids=[args.rel_id]); removed = 1
+    else:
+        conds = []
+        if args.source: conds.append({"source": args.source})
+        if args.target: conds.append({"target": args.target})
+        if args.rel_type: conds.append({"rel_type": args.rel_type})
+        if not conds:
+            print("错误: 请提供 --rel-id 或 --source/--target/--rel-type 之组合"); sys.exit(1)
+        where = {"$and": conds} if len(conds) > 1 else conds[0]
+        got = rel_col.get(where=where)
+        if not got["ids"]:
+            print("无匹配关系"); return
+        rel_col.delete(ids=got["ids"]); removed = len(got["ids"])
+    _update_meta_total(client, "total_relationships", -removed)
+    print(f"🔗 已删 {removed} 条关系")
+
+
+# ========== resume（会话桥接：存档/恢复，贾维斯块③） ==========
+# 会话存档 type=session；任务状态 metadata.status ∈ pending/in_progress/done/blocked。
+# 会话结束时 AI 调 resume --save "总结"；新会话始 AI 调 resume 拉上次存档+未完成任务。
+TASK_STATUSES = ("pending", "in_progress", "done", "blocked")
+STATUS_EMOJI = {"pending": "🕐", "in_progress": "🔄", "done": "✅", "blocked": "⛔"}
+
+
+def cmd_resume(args):
+    client = get_client()
+    mem_col = get_collection(client, "memories")
+    now = _now()
+
+    if getattr(args, "save", None):
+        sid = str(uuid.uuid4())
+        meta = {
+            "type": "session", "emotion": 0.3, "emotion_weight": 0.3,
+            "title": (args.title or f"会话存档 {now.strftime('%m-%d %H:%M')}"),
+            "created_at": now.isoformat(), "created_date": now.strftime("%Y-%m-%d"),
+            "updated_at": now.isoformat(),
+            "keywords": args.keywords or "会话存档,session",
+            "source": args.source or "resume", "source_session": args.session or "",
+            "frequency": 1, "recall_count": 0,
+        }
+        mem_col.add(documents=[args.save], metadatas=[meta], ids=[sid])
+        _append_backup(sid, args.save, meta)
+        print(f"📂 会话存档已存: {sid}")
+        print(f"   {meta['title']}")
+        return
+
+    # ── 恢复模式：上次存档 + 未完成任务 ──
+    print(f"📂 会话恢复 ── {now.strftime('%Y-%m-%d %H:%M')}")
+    # 1. 最近会话存档（type=session，最新在前）
+    try:
+        arcs = mem_col.get(where={"type": "session"})
+        want = min(args.limit or 1, 5)
+        if arcs["ids"]:
+            rows = []
+            for i, aid in enumerate(arcs["ids"]):
+                am = arcs["metadatas"][i] if arcs["metadatas"] else {}
+                rows.append((am.get("created_at", ""), aid,
+                             arcs["documents"][i] if arcs["documents"] else "",
+                             am))
+            rows.sort(reverse=True)
+            print(f"\n  ▸ 上次会话存档（{min(want, len(rows))} 条，新→旧）")
+            for ca, aid, doc, am in rows[:want]:
+                print(f"  ── {am.get('created_date','')} {am.get('title','')}  🆔 {aid}")
+                print(f"     📝 {doc}")
+        else:
+            print("\n  ▸ 无会话存档（首次会话或从未 --save）")
+    except Exception as e:
+        print(f"  ⚠️ 存档读取失败: {e}")
+
+    # 2. 未完成任务（type=task 且 status ∉ done）
+    try:
+        tasks = mem_col.get(where={"type": "task"})
+        open_rows = []
+        for i, tid in enumerate(tasks["ids"]):
+            tm = tasks["metadatas"][i] if tasks["metadatas"] else {}
+            st = tm.get("status", "pending")
+            if st == "done":
+                continue
+            doc = (tasks["documents"][i] if tasks["documents"] else "")[:120]
+            open_rows.append((tm.get("created_at", ""), st, tid, doc,
+                              tm.get("title", "")))
+        if open_rows:
+            order = {"blocked": 0, "in_progress": 1, "pending": 2}
+            open_rows.sort(key=lambda r: (order.get(r[1], 3), r[0]))
+            print(f"\n  ▸ 未完成任务（{len(open_rows)} 条，blocked→in_progress→pending）")
+            for ca, st, tid, doc, title in open_rows[:10]:
+                print(f"  {STATUS_EMOJI.get(st,'•')} [{st}] {(title or doc)[:60]}  🆔 {tid}")
+            if len(open_rows) > 10:
+                print(f"  ……余 {len(open_rows) - 10} 条省略")
+            print(f"  ⚙️ 进展用 update --status 更新")
+        else:
+            print("\n  ▸ 无未完成任务")
+    except Exception as e:
+        print(f"  ⚠️ 任务读取失败: {e}")
 
 
 # ========== stats ==========
@@ -1991,6 +2190,8 @@ def main():
     p.add_argument("--activity-end", help="活动结束时间（如 2025-05-10）")
     p.add_argument("--force", action="store_true", help="跳过去重合并，强制新增")
     p.add_argument("--merge-ids", help="AI 有机合并：删指定记忆ID(逗号分隔)，本内容(综合合并版)存为新条目")
+    p.add_argument("--status", default=None, choices=list(TASK_STATUSES),
+                   help="任务状态（task 用）：pending/in_progress/done/blocked，task 默认 pending")
     p.add_argument("--skill-name", help="技能名称")
     p.add_argument("--skill-summary", help="技能一句话概括")
     p.add_argument("--skill-strategy", help="技能策略/步骤")
@@ -2025,6 +2226,8 @@ def main():
     p.add_argument("--scene", help="新场景")
     p.add_argument("--activity-start", help="新活动开始时间")
     p.add_argument("--activity-end", help="新活动结束时间")
+    p.add_argument("--status", default=None, choices=list(TASK_STATUSES),
+                   help="任务状态更新：pending/in_progress/done/blocked")
     p.set_defaults(func=cmd_update)
 
     p = sub.add_parser("delete", help="删除记忆")
@@ -2053,6 +2256,31 @@ def main():
     p.set_defaults(func=cmd_merge)
 
     p = sub.add_parser("stats", help="统计信息"); p.set_defaults(func=cmd_stats)
+
+    # ── link / unlink（知识图谱：手动关系，贾维斯块⑤）──
+    lk = sub.add_parser("link", help="双向链接两条记忆（causes/references/contradicts/extends）")
+    lk.add_argument("--source", required=True, help="源记忆 ID")
+    lk.add_argument("--target", required=True, help="目标记忆 ID")
+    lk.add_argument("--rel-type", default="references", choices=list(REL_TYPES),
+                    help="关系类型：causes(因果)/references(引用)/contradicts(矛盾)/extends(延伸)")
+    lk.add_argument("--note", default="", help="关系注记（如因果说明）")
+    lk.set_defaults(func=cmd_link)
+    ul = sub.add_parser("unlink", help="删除关系（--rel-id 或 --source/--target/--rel-type 组合）")
+    ul.add_argument("--rel-id", default=None, help="关系记录 ID")
+    ul.add_argument("--source", default=None, help="按源过滤")
+    ul.add_argument("--target", default=None, help="按目标过滤")
+    ul.add_argument("--rel-type", default=None, choices=list(REL_TYPES), help="按类型过滤")
+    ul.set_defaults(func=cmd_unlink)
+
+    # ── resume（会话桥接：存档/恢复，贾维斯块③）──
+    rs = sub.add_parser("resume", help="会话桥接：无参=恢复（上次存档+未完成任务）；--save=存档")
+    rs.add_argument("--save", default=None, help="会话结束存档：传总结全文")
+    rs.add_argument("--title", default=None, help="存档标题（默认会话存档+时间）")
+    rs.add_argument("--keywords", default=None, help="存档关键字")
+    rs.add_argument("--session", default=None, help="会话 ID")
+    rs.add_argument("--source", default=None, help="存档来源")
+    rs.add_argument("--limit", type=int, default=1, help="恢复时显示最近 N 条存档（默认1，上限5）")
+    rs.set_defaults(func=cmd_resume)
 
     p = sub.add_parser("recover", help="从备份文件恢复记忆库（data/ 被误删时使用）"); p.set_defaults(func=cmd_recover)
 

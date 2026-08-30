@@ -236,13 +236,27 @@ python %USERPROFILE%\.local\share\yishi\scripts\install.py --model-only
 ### 核心一：记忆涌现（言必检）
 
 - **每言必检**：用户每句话触发涌现检索 + 情绪锚定，检索空则换词扩大再试。详情见 modules/13-retrieval-store.md。
-- **对话启始**：取项目名 `recall` 之，同时检查梳理状态。流程见 modules/13-retrieval-store.md。
+- **对话启始**：取项目名 `recall` 之，同时 `resume` 拉上次会话存档与未完成任务（会话桥接），再检查梳理状态。流程见 modules/13-retrieval-store.md。
 - **话题转换即查**：莫等转折才检索——每句话皆可能为钥匙。涌现之记忆，纵不完全吻合，亦主动抛出供确认。
 
 ### 核心二：自主记忆（值必存）
 
 - **主动存储**：用户言"记住"时必存；完成任务后必自问"有无值得记忆"；犹豫即存。命令见 modules/13-retrieval-store.md。
 - **不等开口**：凡有价值信息（决策、偏好、任务、情绪、时间、上下文），主动留存，不待用户言"记住"。
+- **任务状态追踪**：task 类型记忆带状态（pending/in_progress/done/blocked，默认 pending）。任务开工 `update --id <ID> --status in_progress`；完工 `--status done`；受阻 `--status blocked`。未完成任务于会话恢复时自动列出。
+
+### 核心三：自动技能习得（贾维斯块④）
+
+- **任务完成必自问**："此事可否复用？"凡有可复用路径（工具用法/修复套路/工作流），即存技能卡：`store --type skill --skill-name "..." --skill-summary "..." --skill-path "可执行路径/调用方式" --skill-strategy "步骤" --skill-triggers "触发词1,触发词2"`（⚠️ --skill-path 必填）。
+- **失败亦学**：技能执行失败，教训存该技能之子节点（--parent 挂技能下），标 --skill-avoid 禁忌。
+- **版本化**：store 时脚本自动查同名技能——见「⚠️ 已有同名技能」提示即用 `--merge-ids "<旧ID>" --skill-version <递增版本>` 合并升级，勿重复造轮。
+
+### 核心四：知识图谱（贾维斯块⑤）
+
+- **显式关系**：记忆间非树型关系用 `link` 建：`link --source <ID甲> --target <ID乙> --rel-type causes|references|contradicts|extends --note "注记"`（causes 因果/references 引用/contradicts 矛盾/extends 延伸）。
+- **recall 自动显关联**：命中记忆之 🔗 关联行列出 1 跳关系（如 `⚡因果→某标题`），据其顺藤摸瓜（--expand 展开关联内容）。
+- **矛盾即警**：recall 见 ⚔️矛盾 关联，须辨新旧取舍，勿并存自相矛盾之记忆。
+- **删关系**：`unlink --rel-id <关系ID>` 或按 --source/--target/--rel-type 组合删。
 
 ### 辅助操作
 
@@ -250,7 +264,7 @@ python %USERPROFILE%\.local\share\yishi\scripts\install.py --model-only
 - **可视化回顾**：用户想看记忆全貌（"看看记了啥""可视化"），运行 `python3 $VIZ`（须设 MEMO_DIR），默认生成 `~/Desktop/忆时记忆全景.html` 并打开。专题记忆之书：`python3 $VIZ --topic "系统运维" --label "openKylin"`（或 `--filter 关键字`）。详情见 modules/12-viz-profile.md。
 - **记忆脑图**：用户想看记忆全貌之脑图（"记忆脑图""脑图""画个脑图"），运行 `python3 $LOCAL_BASE/scripts/viz/mindmap.py`（须设 MEMO_DIR），默认生成 `~/Desktop/忆时记忆脑图.html` 并打开——按类型→主题→记忆径向树展示，点击展开/收起。
 - **人物画像**：用户问"我是怎样的人""人物画像"，**先问署名**（默认 fslong），运行 `python3 $VIZ/profile.py` 取素材，按 modules/12-viz-profile.md「画像」之正文结构撰写画像（页脚 s-foot 署名），注入生成 `~/Desktop/哥哥人物画像.html` 并打开，产出后存入记忆；画像自动封存为时间胶囊（3 个月后解锁，`--no-capsule` 可关）。
-- **对话结束**：强制归档，回顾要点，判断是否存入记忆。流程见 modules/09-archiving.md。
+- **对话结束**：强制归档，回顾要点，判断是否存入记忆，**且必存会话存档**：`resume --save "<本轮要点总结：做了什么+关键决策+未竟事项>"`（会话桥接，下次会话 resume 恢复）。流程见 modules/09-archiving.md。
 
 ### 启始自检
 
@@ -284,8 +298,19 @@ python3 $YISHI store --type decision --keywords "k1,k2" --emotion 0.5 "记忆内
 # recall：检索/核实
 python3 $YISHI recall "关键词 关键词"
 
+# resume（会话桥接）：会话始恢复 / 会话末存档
+python3 $YISHI resume
+python3 $YISHI resume --save "本轮要点总结" --title "短标题"
+
+# link（知识图谱）：双向关系；unlink 删关系
+python3 $YISHI link --source <ID甲> --target <ID乙> --rel-type causes --note "注记"
+python3 $YISHI unlink --source <ID甲>
+
+# 任务状态（task 类型）：开工/完工/受阻
+python3 $YISHI update --id <任务ID> --status in_progress   # 或 done/blocked/pending
+
 # 常用扩展：--scene 场景  --force 强制新增  --type-filter emotion --min-weight 0.5  --no-embed 快速检索
-# 其他子命令：forget 删除  stats 统计  export 导出  recover 恢复
+# 其他子命令：forget 删除  stats 统计  export 导出  recover 恢复  capsule 胶囊  merge 合并  promote/demote 层级
 ```
 
 ### 决策后检

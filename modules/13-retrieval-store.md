@@ -145,9 +145,71 @@ MEMO_DIR=~/.local/share/yishi/data python3 ~/.local/share/yishi/scripts/memory_c
 - **迭代收敛**：同一主题多锚各跑一次、逐步降阈值/换关键词语，直到不再出现高相关簇为止（相似度 <0.70 的同主题会漏，须多次 merge）。
 - 违背**合并铁律**（逐条 AI 手动、消歧、删旧）者判不合格。
 
-**类型**：task / decision / preference / emotion / time / context / skill
+**类型**：task / decision / preference / emotion / time / context / skill / session
 **情绪**：0.0~1.0 数值（默认 0.5），数值越大越重要/强烈；旧词 high=0.8 / medium=0.5 / low=0.2 仍兼容（自动转数值）
 **场景与活动时间**：`--scene` 归组（如"教学课后反馈"），`--activity-start/--activity-end` 记段段时间（如旅行 2025-05-01 ~ 05-10）。事件性记忆（time 类型）建议标注。
+
+## 会话桥接（resume，贾维斯块③）
+
+跨会话上下文连续——新会话知上次讲了什么、有什么未竟。
+
+```bash
+# 会话开始（对话启始时与 recall 并用）：
+python3 $YISHI resume
+# → 输出：上次会话存档（type=session 最新 1 条全文）+ 未完成任务（blocked→in_progress→pending）
+
+# 会话结束（归档后必做）：
+python3 $YISHI resume --save "本轮要点：做了什么+关键决策+未竟事项" --title "短标题"
+```
+
+**任务状态**（task 类型记忆，metadata.status）：
+```bash
+... store --type task --keywords "..." --emotion 0.4 "任务描述"        # 默认 pending
+... update --id <任务ID> --status in_progress   # 开工
+... update --id <任务ID> --status done          # 完工（resume 不再列出）
+... update --id <任务ID> --status blocked       # 受阻（resume 置顶列出）
+```
+状态四值：`pending`（待办 🕐）/ `in_progress`（进行 🔄）/ `done`（完 ✅）/ `blocked`（阻 ⛔）。
+
+## 知识图谱（link，贾维斯块⑤）
+
+记忆间非树型关系用显式链接。树（--parent）表从属；link 表语义关系（因果/引用/矛盾/延伸）。
+
+```bash
+# 建立双向关系（存一条，两端 recall 皆可见）：
+python3 $YISHI link --source <ID甲> --target <ID乙> --rel-type causes --note "此决策催生此任务"
+
+# 关系四型：
+#   causes      ⚡因果 —— 甲导致乙（决策→任务、事故→教训）
+#   references  📎引用 —— 甲引用乙（报告→数据源）
+#   contradicts ⚔️矛盾 —— 甲与乙矛盾（发现即辨取舍，勿并存自相矛盾）
+#   extends     🌱延伸 —— 甲延伸乙（方案 v2 → 方案 v1）
+
+# recall 命中任一端，输出行如：🔗 关联: ⚡因果→标题（注记）
+# 顺藤摸瓜：recall ... --expand 展开关联记忆全文
+
+# 删关系：
+python3 $YISHI unlink --rel-id <关系ID>
+python3 $YISHI unlink --source <ID甲>            # 按源删全部
+python3 $YISHI unlink --source A --rel-type contradicts
+```
+
+store 时相似 ≥阈值者仍自动建语义关联（score=语义值）；link 建者为手动关系（manual=true, score=1.0），recall 关联行优先显示。
+
+## 自动技能习得（贾维斯块④）
+
+任务完成必自问"此事可否复用"——凡有可复用路径即存技能卡：
+```bash
+python3 $YISHI store --type skill \
+  --skill-name "技能名" --skill-summary "一句话概括" \
+  --skill-path "可执行路径/调用方式" --skill-strategy "步骤" \
+  --skill-triggers "触发词1,触发词2" \
+  --keywords "..." --emotion 0.3 "技能详情全文"
+```
+- **--skill-path 必填**——无路径 AI 无法定位工具，技能形同虚设。
+- **同名查重**：store 自动检测同名技能并打印已有版本（🆔+v版本号+摘要）→ 用 `--merge-ids "<旧ID>" --skill-version <递增>` 合并升级，勿重复造轮。
+- **失败亦学**：教训挂技能子节点（`--parent <技能ID>`），必要处写 --skill-avoid 禁忌。
+- **recall 触发**：查询词命中 --skill-triggers 时，技能卡自动浮出（⚡触发标记），按卡执行。
 
 **检索命令（新参数）：**
 ```bash
