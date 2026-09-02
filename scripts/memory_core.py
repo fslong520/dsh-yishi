@@ -31,8 +31,16 @@ import time
 import uuid
 import warnings
 import contextlib
-from datetime import datetime, timedelta
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from io import StringIO
 from pathlib import Path
+try:
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from urllib.parse import urlparse, parse_qs
+    _HAS_HTTP = True
+except ImportError:
+    _HAS_HTTP = False
 
 # 静默 ONNX C++ 层 Schema error 滋扰
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -638,7 +646,7 @@ def cmd_store(args):
                                     _m2["parent_id"] = ""
                                     mem_col.update(ids=[_ofc], metadatas=[_m2])
                                     _append_backup(_ofc, None, _m2)
-                            print(f"  ↪ 子链已迁移：{_ofc[:12]} 重挂（原父 {mid[:12]} 被合并删除）")
+                            print(f"  ↪ 果链迁移：{_ofc[:12]} 重挂回其因 {_opid[:12]} 下（中间节点 {mid[:12]} 合并删除，因果方向不变）")
                         # 记录被删节点父链：合并产物继承（保持树形层级）
                         if _opid and inherit_parent is None:
                             inherit_parent = _opid
@@ -657,7 +665,7 @@ def cmd_store(args):
         if inherit_parent:
             try:
                 _link_as_child(mem_col, new_mid, inherit_parent)
-                print(f"  ↪ 合并产物继承父链：{new_mid[:12]} 挂到 {inherit_parent[:12]} 下")
+                print(f"  ↪ 合并产物继承因链：{new_mid[:12]} 挂到其因 {inherit_parent[:12]} 下（保持因果方向）")
             except Exception:
                 pass
         if dropped:
@@ -691,7 +699,7 @@ def cmd_store(args):
         # 候选父节点：树型存储提示
         if parent_candidates:
             parent_candidates.sort(key=lambda x: -x[1])
-            print(f"\n  🔗 可选父节点（树型存储）：本内容或属某主题树，可挂为子节点：")
+            print(f"\n  🔗 可选因节点（因果树）：本内容若为下述事件之果（前因），挂其下 --parent 成链：")
             for pmid, psem in parent_candidates[:3]:
                 try:
                     pmm = mem_col.get(ids=[pmid])["metadatas"]
@@ -736,7 +744,10 @@ def cmd_store(args):
                             break
                         cur_id = ns
                 metadata["parent_id"] = parent_id
-                print(f"🔗 已挂载到父节点 {parent_id[:12]} 之下（链式前向星）")
+                _ptl = _tree_label("", parent_meta) or parent_id[:8]
+                print(f"🔗 因果链挂载：本条为「{_ptl}」之果，挂其下（父=因 {parent_id[:12]}，链式前向星）")
+                if fc:
+                    print(f"     └─ 父已有果（子树非空）：本条与之并列，同因多果——因果链顺延")
             else:
                 print(f"⚠️ 父节点 {parent_id[:12]} 不存在或已删，本节点悬空存储")
         except Exception as e:
@@ -1194,8 +1205,8 @@ def cmd_recall(args):
                 elif _role == "🌿根" and _rc < 2 and _fc:
                     _hint = " ❄️根节点少被检索，AI 可考虑 demote 下沉（--parent 指定新父）"
                 if _role != "🌿根" or _fc or _hint:
-                    print(f"     │ 🏔 层级: {_role} 深度{_depth} 子树{'有' if _fc else '无'} 检索{_rc}次{_hint}")
-                # 祖先链回溯（面包屑：根→枝→叶，渐进式披露的上下文锚点）
+                    print(f"     │ 🏔 层级: {_role} 深度{_depth} 检索{_rc}次{_hint}")
+                # 因果链（父子即因果：父=前因，子=后果；果复为因，链式传导）
                 if _pid:
                     _chain = []
                     _tmp2 = _pid
@@ -1210,7 +1221,9 @@ def cmd_recall(args):
                         _tmp2 = _am[0].get("parent_id", "") or ""
                     if _chain:
                         _crumb = " ← ".join(reversed(_chain))
-                        print(f"     │ 🧭 路径: {_crumb}")
+                        print(f"     │ 🔺因链: {_crumb} → 本条为其果")
+                if _fc:
+                    print(f"     │ 🔻果: 子树非空（本条又为下游之因）→ recall 同主题 --tree 顺果链展开")
         except Exception:
             pass
 
@@ -1455,7 +1468,7 @@ def cmd_promote(args):
         grandparent_id = (pm[0].get("parent_id", "") or "")
     if grandparent_id:
         _link_as_child(mem_col, args.id, grandparent_id)
-        print(f"⬆️ 已上浮：{args.id[:12]} 从 {parent_id[:12]} 子级升到 {grandparent_id[:12]} 子级（祖父层）")
+        print(f"⬆️ 因果上浮：{args.id[:12]} 升到 {grandparent_id[:12]} 子级（本条之果随之，因果层级上移一层）")
     else:
         # 原父是根：本节点成为新根
         mm2 = mem_col.get(ids=[args.id])["metadatas"]
@@ -1464,7 +1477,7 @@ def cmd_promote(args):
             m2["parent_id"] = None
             mem_col.update(ids=[args.id], metadatas=[m2])
             _append_backup(args.id, None, m2)
-        print(f"⬆️ 已上浮为根节点：{args.id[:12]}（原父 {parent_id[:12]} 的层级由它取代）")
+        print(f"⬆️ 因果上浮为根：{args.id[:12]}（原父 {parent_id[:12]} 之位由本条取代）")
 
 
 def cmd_demote(args):
@@ -1486,7 +1499,7 @@ def cmd_demote(args):
     if old_parent:
         _unlink_from_parent(mem_col, args.id, old_parent)
     _link_as_child(mem_col, args.id, args.parent)
-    print(f"⬇️ 已下沉：{args.id[:12]} 挂到 {args.parent[:12]} 之下成为叶子")
+    print(f"⬇️ 因果下沉：{args.id[:12]} 挂到 {args.parent[:12]} 之下成为其果（本条下游果链随之）")
 
 
 def _is_descendant(mem_col, node_id, ancestor_id):
@@ -2172,7 +2185,214 @@ def cmd_recover(args):
         print(f"  跳过 {len(records) - restored} 条（已存在）")
 
 
-def main():
+# ========== 远程调用（Local/Remote 双模式客户端） ==========
+def _remote_argv(argv):
+    """把 argv 转发到远程 YISHI_ADDR 的 /run 端点。返回 (exit_code, text) 或 None。"""
+    addr = os.environ.get("YISHI_ADDR", "").strip().rstrip("/")
+    token = os.environ.get("YISHI_TOKEN", os.environ.get("YISHI_SERVE_TOKEN", ""))
+    if not addr:
+        return None
+    import urllib.request
+    import urllib.error
+    req = urllib.request.Request(
+        f"{addr}/run",
+        data=json.dumps({"argv": argv}).encode(),
+        headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {})},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            body = json.loads(resp.read().decode())
+            return (body.get("code", 0), body.get("text", ""))
+    except urllib.error.HTTPError as e:
+        try:
+            err = json.loads(e.read().decode())
+        except Exception:
+            err = {"error": str(e)}
+        return (e.code, str(err))
+    except Exception as e:
+        return (1, str(e))
+
+
+# ========== serve（HTTP 服务器，多客户端共享） ==========
+def cmd_serve(args):
+    if not _HAS_HTTP:
+        print("错误: 当前 Python 无 http.server 模块，无法 serve", file=sys.stderr)
+        sys.exit(1)
+    token = args.token or os.environ.get("YISHI_SERVE_TOKEN", "")
+    if not token:
+        print("错误: serve 需 --token 或设 YISHI_SERVE_TOKEN", file=sys.stderr)
+        sys.exit(1)
+    host_port = args.bind.rsplit(":", 1)
+    host, port = host_port[0], int(host_port[1])
+
+    # 预打开数据库，验证可用
+    try:
+        get_client()
+    except Exception as e:
+        print(f"错误: 打开记忆库失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    class YishiHandler(BaseHTTPRequestHandler):
+        def _auth(self):
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Bearer "):
+                self._json(401, {"error": "unauthorized: missing Bearer token"})
+                return False
+            got = auth[7:]
+            # 常数时间比较
+            if len(got) != len(token):
+                self._json(401, {"error": "unauthorized: token rejected"})
+                return False
+            diff = 0
+            for a, b in zip(got.encode(), token.encode()):
+                diff |= a ^ b
+            if diff:
+                self._json(401, {"error": "unauthorized: token rejected"})
+                return False
+            return True
+
+        def _json(self, code, obj):
+            data = json.dumps(obj, ensure_ascii=False).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _run(self, argv):
+            """在进程内执行 argv，捕获 stdout。"""
+            old_stdout, old_stderr = sys.stdout, sys.stderr
+            buf = StringIO()
+            sys.stdout = buf
+            sys.stderr = buf
+            code = 0
+            try:
+                _dispatch_with_lock(argv, skip_lock=True)
+            except SystemExit as e:
+                code = e.code if e.code is not None else 0
+            except Exception as e:
+                buf.write(f"错误: {e}\n")
+                code = 1
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+            return code, buf.getvalue()
+
+        def do_GET(self):
+            if not self._auth():
+                return
+            parsed = urlparse(self.path)
+            path = parsed.path
+            if path == "/health":
+                return self._json(200, {"ok": True, "service": "yishi-memory", "version": "0.4.25"})
+            if path == "/recall":
+                qs = parse_qs(parsed.query)
+                query = (qs.get("q") or [""])[0]
+                limit = int((qs.get("limit") or ["5"])[0])
+                code, text = self._run(["recall", query, "--limit", str(limit)])
+                return self._json(200, {"code": code, "text": text})
+            self._json(404, {"error": f"not found: {path}"})
+
+        def do_POST(self):
+            if not self._auth():
+                return
+            parsed = urlparse(self.path)
+            path = parsed.path
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b""
+            try:
+                body = json.loads(raw.decode()) if raw else {}
+            except Exception:
+                body = {}
+            if path == "/run":
+                argv = body.get("argv", [])
+                if isinstance(argv, list) and argv:
+                    code, text = self._run(argv)
+                    return self._json(200, {"code": code, "text": text})
+                return self._json(400, {"error": "argv required"})
+            if path == "/remember":
+                content = body.get("content", "")
+                if not content:
+                    return self._json(400, {"error": "content required"})
+                argv = ["store", content, "--force"]
+                t = body.get("type")
+                if t:
+                    argv += ["--type", str(t)]
+                kw = body.get("tags") or body.get("keywords")
+                if kw:
+                    argv += ["--keywords", str(kw)]
+                em = body.get("emotion")
+                if em is not None:
+                    argv += ["--emotion", str(em)]
+                code, text = self._run(argv)
+                return self._json(200, {"code": code, "text": text})
+            if path == "/forget":
+                mid = body.get("id", "")
+                if not mid:
+                    return self._json(400, {"error": "id required"})
+                code, text = self._run(["delete", "--id", str(mid)])
+                return self._json(200, {"code": code, "text": text})
+            self._json(404, {"error": f"not found: {path}"})
+
+        def log_message(self, fmt, *args):
+            pass
+
+    try:
+        server = HTTPServer((host, port), YishiHandler)
+    except OSError as e:
+        print(f"错误: 无法绑定 {args.bind}: {e}", file=sys.stderr)
+        sys.exit(1)
+    print(f"🟢 忆时 serve 启动: http://{args.bind}", file=sys.stderr)
+    print(f"🔑 token: {token[:4]}…{token[-2:]}（同 YISHI_TOKEN 用于本地 CLI 远程模式）", file=sys.stderr)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n🛑 已停止", file=sys.stderr)
+        server.server_close()
+
+
+def _dispatch_with_lock(argv, skip_lock=False):
+    """带进程锁的本地执行（与 main 尾部一致），供 serve 复用。
+    skip_lock=True：serve 内部调用，不重复加锁。"""
+    lock_fd = None
+    if not skip_lock:
+        try:
+            import fcntl
+            os.makedirs(DATA_DIR, exist_ok=True)
+            lock_path = os.path.join(DATA_DIR, ".memory.lock")
+            lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+            waited = 0
+            while True:
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if waited >= 8:
+                        print("⚠️ 另一忆时进程正在操作（并发写锁），请稍后再试", file=sys.stderr)
+                        os.close(lock_fd)
+                        sys.exit(1)
+                    time.sleep(0.2)
+                    waited += 0.2
+        except ImportError:
+            pass
+    try:
+        parser = _build_parser()
+        args = parser.parse_args(argv)
+        if args.command:
+            args.func(args)
+    finally:
+        if lock_fd is not None:
+            try:
+                import fcntl
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            except Exception:
+                pass
+            os.close(lock_fd)
+
+
+def _build_parser():
+    """构建完整参数解析器（供 main 与 serve 复用）。"""
     parser = argparse.ArgumentParser(description="忆时 Memory Core", formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command")
 
@@ -2234,13 +2454,13 @@ def main():
     p.add_argument("--id", required=True, help="记忆ID")
     p.set_defaults(func=cmd_delete)
 
-    p = sub.add_parser("promote", help="heap 上浮：记忆升到祖父层/根，层级权重上升")
+    p = sub.add_parser("promote", help="因果上浮：记忆升到祖父层/根（本条升为更上游之因，果链随之）")
     p.add_argument("--id", required=True, help="记忆ID")
     p.set_defaults(func=cmd_promote)
 
-    p = sub.add_parser("demote", help="heap 下沉：记忆挂到 --parent 下成为叶子")
+    p = sub.add_parser("demote", help="因果下沉：记忆挂到 --parent 下成为其果（因果链延一层）")
     p.add_argument("--id", required=True, help="记忆ID")
-    p.add_argument("--parent", required=True, help="目标父节点ID")
+    p.add_argument("--parent", required=True, help="目标父节点ID（=本条的因）")
     p.set_defaults(func=cmd_demote)
 
     p = sub.add_parser("merge", help="语义合并高相关记忆（预览→apply）")
@@ -2284,6 +2504,11 @@ def main():
 
     p = sub.add_parser("recover", help="从备份文件恢复记忆库（data/ 被误删时使用）"); p.set_defaults(func=cmd_recover)
 
+    sv = sub.add_parser("serve", help="启动 HTTP 服务器（多客户端共享记忆）")
+    sv.add_argument("--bind", default="127.0.0.1:8787", help="监听地址（默认 127.0.0.1:8787）")
+    sv.add_argument("--token", help="Bearer token（默认取自 YISHI_SERVE_TOKEN 环境变量）")
+    sv.set_defaults(func=cmd_serve)
+
     p = sub.add_parser("forget", help="遗忘/归档旧记忆")
     p.add_argument("--before", help="归档此日期之前的记忆"); p.add_argument("--low-freq", type=int, help="频率阈值"); p.add_argument("--auto", action="store_true", help="自动标记")
     p.set_defaults(func=cmd_forget)
@@ -2305,9 +2530,28 @@ def main():
     exp.add_argument("--output", required=True, help="输出文件")
     exp.set_defaults(func=cmd_export)
 
+    return parser
+
+
+def main():
+    parser = _build_parser()
     args = parser.parse_args()
     if not args.command:
         parser.print_help(); sys.exit(0)
+
+    # Local/Remote 双模式：当 YISHI_ADDR 环境变量存在时，把常用命令转发到远程 serve
+    remote_addr = os.environ.get("YISHI_ADDR", "").strip()
+    remote_cmds = {"store", "recall", "delete", "stats", "forget", "promote", "demote", "update"}
+    if remote_addr and args.command in remote_cmds and args.command != "serve":
+        result = _remote_argv(sys.argv[1:])
+        if result:
+            code, text = result
+            if text:
+                print(text, end="")
+            sys.exit(code)
+        else:
+            print("⚠️ 远程调用失败：无法连接 YISHI_ADDR", file=sys.stderr)
+            sys.exit(1)
 
     # 2026-08-14 修复：忆时为单写者 sqlite 库，多 opencode 会话并发操作会互相踩
     # （曾现 "attempt to write a readonly database"）。此处对整条命令加进程排他锁，

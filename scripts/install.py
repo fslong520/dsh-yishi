@@ -179,6 +179,58 @@ def check_opencode():
     return ok
 
 
+# ── 标记块幂等注入（<!-- yishi:begin --> ... <!-- yishi:end -->）──
+# 注入内容包裹在标记块内：重复安装先清旧块再写新块（幂等）；--uninstall 精确移除标记块，
+# 不动文件其余内容。仿 memocap 的 AGENTS.md 管理法。
+YISHI_BEGIN = "<!-- yishi:begin -->"
+YISHI_END = "<!-- yishi:end -->"
+
+
+def wrap_marked(content):
+    """把内容包裹成标记块。"""
+    return f"{YISHI_BEGIN}\n{content.strip()}\n{YISHI_END}\n"
+
+
+def extract_marked(text):
+    """若文本含标记块，返回 (块内内容, 其余部分)。无标记块返回 (None, 原文本)。"""
+    if YISHI_BEGIN not in text:
+        return None, text
+    start = text.index(YISHI_BEGIN)
+    end_marker = text.find(YISHI_END, start)
+    if end_marker == -1:
+        raise ValueError("发现不完整的 yishi 标记块，请手动修复文件")
+    end = end_marker + len(YISHI_END)
+    inner = text[start + len(YISHI_BEGIN):end_marker]
+    rest = text[:start] + text[end:]
+    return inner.strip(), rest
+
+
+def inject_marked(path: Path, content):
+    """把 content 以标记块幂等写入 path（先清旧块，追加到文末）。"""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        text = ""
+    _, rest = extract_marked(text)
+    rest = rest.rstrip()
+    separator = "\n\n" if rest else ""
+    path.write_text(f"{rest}{separator}{wrap_marked(content)}", encoding="utf-8")
+    return True
+
+
+def remove_marked(path: Path) -> bool:
+    """移除 path 中的标记块。返回是否移除。"""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return False
+    inner, rest = extract_marked(text)
+    if inner is None:
+        return False
+    path.write_text(rest.rstrip() + "\n" if rest.strip() else "", encoding="utf-8")
+    return True
+
+
 def _jsonc_merge_instructions(text):
     """把忆时路径并入 instructions 数组（JSONC 兼容：纯文本正则，不解析 JSON）。
 
@@ -251,7 +303,11 @@ def main():
     init_only = "--init-only" in args
     model_only = "--model-only" in args
     opencode_only = "--opencode-only" in args
+    uninstall = "--uninstall" in args
     verbose = "--verbose" in args
+
+    if uninstall:
+        return uninstall_all()
 
     # ── 检测（check 模式到此为止）──
     py_ok = check_python()
@@ -285,8 +341,71 @@ def main():
     else:
         ok &= setup_opencode()
 
+    # 标记块注入 SKILL.md（幂等）
+    try:
+        skill_dst = LOCAL_BASE / "docs" / "SKILL.md"
+        skill_src = SCRIPT_DIR.parent / "SKILL.md"
+        if skill_src.exists():
+            inject_marked(skill_dst, skill_src.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"  ⚠️ SKILL.md 标记块注入失败: {e}", file=sys.stderr)
+
     print("\n" + ("✓ 环境就绪。" if ok else "✗ 有步骤失败，见上方错误。"))
     return 0 if ok else 1
+
+
+def uninstall_all():
+    """--uninstall：移除忆时配置（opencode instructions + SKILL.md 标记块 + data/models）。"""
+    print("🗑 忆时卸载：")
+    removed_any = False
+    # 1. opencode.json instructions
+    f = _find_opencode_file()
+    if f is not None:
+        try:
+            text = f.read_text(encoding="utf-8")
+            new_text, changed = _jsonc_remove_instructions(text)
+            if changed:
+                f.write_text(new_text, encoding="utf-8")
+                print(f"  ✓ 已从 {f.name} 移除忆时 instructions")
+                removed_any = True
+            else:
+                print(f"  ✓ {f.name} 无忆时 instructions")
+        except OSError as e:
+            print(f"  ❌ 移除失败 {f}: {e}", file=sys.stderr)
+    else:
+        print("  ✓ opencode 无配置文件")
+    # 2. SKILL.md 标记块
+    try:
+        skill_dst = LOCAL_BASE / "docs" / "SKILL.md"
+        if remove_marked(skill_dst):
+            print(f"  ✓ 已移除 {skill_dst} 之标记块")
+            removed_any = True
+    except Exception as e:
+        print(f"  ⚠️ SKILL.md 移除失败: {e}", file=sys.stderr)
+    # 3. data + models（提示）
+    if removed_any:
+        print("\n  ℹ️ 数据与模型未删除（记忆宝贵）。如需清除：")
+        print(f"     rm -rf {DATA_DIR}")
+        print(f"     rm -rf {MODEL_DIR.parent.parent}")
+    else:
+        print("  未发现忆时配置，无需卸载。")
+    return 0
+
+
+def _jsonc_remove_instructions(text):
+    """从 opencode.json(.c) 移除忆时 instructions 条目。返回 (新文本, 是否改动)。"""
+    inst = json.dumps(INST_PATH, ensure_ascii=False)
+    if inst not in text:
+        return text, False
+    # 数组内删除该条目：匹配 ,"..." 或 "...", 或单独条目
+    new_text = text.replace(", " + inst, "").replace(inst + ",", "").replace(inst, "")
+    # 清理空数组
+    new_text = re.sub(r'"instructions"\s*:\s*\[\s*,', '"instructions": [', new_text)
+    new_text = re.sub(r'"instructions"\s*:\s*\[\s*\]', '"instructions": [],', new_text)
+    # 若只剩空 instructions 字段，整个移除
+    new_text = re.sub(r'"instructions"\s*:\s*\[\s*\],?\s*', '', new_text)
+    new_text = re.sub(r',\s*\}', '}', new_text)
+    return new_text, new_text != text
 
 
 if __name__ == "__main__":
